@@ -1,0 +1,14 @@
+# Python 3.12. Captured from the working POC environment (2026-06-04).
+# torch/torchvision are CPU builds here; install them from the CPU wheel index:
+#   pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+# then: pip install -r requirements.txt
+torch==2.12.0
+torchvision==0.27.0
+opencv-python==4.13.0
+pandas==3.0.3
+numpy==2.4.6
+pillow==12.2.0
+requests==2.34.2
+openpyxl==3.1.5
+pymupdf==1.27.2.3
+pyarrow==24.0.0
