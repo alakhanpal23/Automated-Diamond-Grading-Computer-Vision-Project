@@ -186,6 +186,10 @@ def main() -> None:
     scaler = torch.amp.GradScaler(device.type, enabled=use_amp)
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    # Persist the class order so inference (predict_stone.py) can map model output
+    # indices back to labels for this head.
+    (MODEL_DIR / "classes.json").write_text(
+        json.dumps([str(c) for c in classes], indent=2), encoding="utf-8")
 
     def run_eval(loader, name):
         model.eval()
