@@ -209,8 +209,10 @@ def main() -> None:
                         per_class_correct[t] += 1
         acc = correct / max(total, 1)
         avg_loss = loss_sum / max(total, 1)
+        # str() the keys: non-string label columns (eye_clean -> numpy bool,
+        # clarity ints) are not JSON-serialisable as dict keys otherwise.
         per_class_recall = {
-            classes[c]: per_class_correct[c] / per_class_total[c]
+            str(classes[c]): per_class_correct[c] / per_class_total[c]
             for c in per_class_total
         }
         print(f"  [{name}] loss={avg_loss:.4f}  acc={acc:.4f}  "
@@ -269,9 +271,9 @@ def main() -> None:
     print("\nFINAL EVAL on test split (using best.pt):")
     test_metrics = run_eval(test_loader, "test")
 
-    (MODEL_DIR / "history.json").write_text(json.dumps(history, indent=2), encoding="utf-8")
-    (MODEL_DIR / "eval_val.json").write_text(json.dumps(history[-1], indent=2), encoding="utf-8")
-    (MODEL_DIR / "eval_test.json").write_text(json.dumps(test_metrics, indent=2), encoding="utf-8")
+    (MODEL_DIR / "history.json").write_text(json.dumps(history, indent=2, default=str), encoding="utf-8")
+    (MODEL_DIR / "eval_val.json").write_text(json.dumps(history[-1], indent=2, default=str), encoding="utf-8")
+    (MODEL_DIR / "eval_test.json").write_text(json.dumps(test_metrics, indent=2, default=str), encoding="utf-8")
     print(f"\nDONE. Best val_acc={best_val_acc:.4f}, test_acc={test_metrics['acc']:.4f}")
     print(f"checkpoints + history under {MODEL_DIR}")
 
