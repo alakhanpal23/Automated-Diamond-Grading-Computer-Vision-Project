@@ -47,6 +47,10 @@ MANIFEST_COLS = [
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Build train/val/test manifests")
     p.add_argument("--frames-dir", type=Path, default=FRAMES_DIR)
+    p.add_argument("--stone-list", type=Path, default=None,
+                   help="Only include stones whose id is in this file (one per line). "
+                        "Lets each head draw a balanced subset from one shared full "
+                        "frame set without re-extracting frames.")
     p.add_argument("--min-frames", type=int, default=1,
                    help="Only include stones whose frame folder holds at least N "
                         "frame_*.jpg files. Set this to --frames-per-video so the "
@@ -124,6 +128,13 @@ def main() -> None:
           f"(>= {args.min_frames} frames each; skipped {partial} partial folders)")
 
     df = df[df["stone_id"].isin(frames_by_stone.keys())].copy()
+    if args.stone_list is not None:
+        ids = {ln.strip() for ln in args.stone_list.read_text(encoding="utf-8").splitlines() if ln.strip()}
+        before = len(df)
+        df = df[df["stone_id"].isin(ids)]
+        # Drop frame folders not in the subset so downstream counts stay consistent.
+        frames_by_stone = {s: f for s, f in frames_by_stone.items() if s in set(df["stone_id"])}
+        print(f"INFO: --stone-list -> kept {len(df)} of {before} stones")
     if args.exclude_shape_other:
         before = len(df)
         df = df[df["shape_group"] != "other"]
