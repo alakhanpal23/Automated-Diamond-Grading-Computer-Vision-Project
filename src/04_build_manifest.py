@@ -52,6 +52,10 @@ def parse_args() -> argparse.Namespace:
                         "frame_*.jpg files. Set this to --frames-per-video so the "
                         "manifest is built only from fully/successfully extracted "
                         "folders (default: 1)")
+    p.add_argument("--strat-col", default="shape_group",
+                   help="Column to stratify the train/val/test split by. Set this to "
+                        "the training target (e.g. eye_clean) so its classes stay "
+                        "balanced across splits (default: shape_group)")
     p.add_argument("--ratios", type=float, nargs=3, default=(0.70, 0.15, 0.15),
                    metavar=("TRAIN", "VAL", "TEST"))
     p.add_argument("--seed", type=int, default=42)
@@ -128,10 +132,17 @@ def main() -> None:
     if df.empty:
         sys.exit("ERROR: no stones remain after joining CSV with frame inventory")
 
-    # Group stone_ids by shape_group for stratification
+    # Group stone_ids by the stratification column. Stones with a blank value in
+    # that column are dropped so a NaN "class" never leaks into a split.
+    if args.strat_col not in df.columns:
+        sys.exit(f"ERROR: --strat-col {args.strat_col!r} not in stone_records columns")
+    before = len(df)
+    df = df[df[args.strat_col].notna()]
+    if len(df) < before:
+        print(f"INFO: dropped {before - len(df)} stones with blank {args.strat_col}")
     stones_by_group: dict[str, list[str]] = defaultdict(list)
-    for sid, grp in zip(df["stone_id"], df["shape_group"]):
-        stones_by_group[grp].append(sid)
+    for sid, grp in zip(df["stone_id"], df[args.strat_col]):
+        stones_by_group[str(grp)].append(sid)
 
     rng = random.Random(args.seed)
     assignment = stratified_grouped_split(stones_by_group, tuple(args.ratios), rng)

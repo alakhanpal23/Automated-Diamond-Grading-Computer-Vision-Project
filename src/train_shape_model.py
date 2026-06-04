@@ -72,8 +72,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--workers", type=int, default=4, help="DataLoader workers")
     p.add_argument("--img-size", type=int, default=224)
     p.add_argument("--label-col", default="shape_group",
-                   choices=("shape_group", "shape_raw"),
-                   help="Manifest column to use as the target label (default: shape_group)")
+                   help="Manifest column to use as the target label, e.g. shape_group, "
+                        "shape_raw, eye_clean, clarity_group, color_group, "
+                        "fluorescence_group, inclusion_weak_label (default: shape_group)")
     p.add_argument("--quick-test", action="store_true",
                    help="One batch fwd/back per split; verifies wiring then exits")
     p.add_argument("--exclude-other", action="store_true",
@@ -114,6 +115,14 @@ def main() -> None:
         df = pd.read_csv(path)
         if args.exclude_other:
             df = df[df["shape_group"] != "other"]
+        # Drop rows with a missing/blank label for the chosen target column so
+        # arbitrary heads (eye_clean, clarity_group, ...) don't train on NaNs.
+        before = len(df)
+        df = df[df[args.label_col].notna()]
+        df = df[df[args.label_col].astype(str).str.strip().ne("")]
+        dropped = before - len(df)
+        if dropped:
+            print(f"INFO: {split}: dropped {dropped} rows with blank {args.label_col}")
         return df.reset_index(drop=True)
 
     train_df = load("train")
