@@ -7,12 +7,9 @@ Run from the repo root once src/04_build_manifest.py has produced the manifests:
                                     [--img-size 224] [--quick-test]
                                     [--exclude-other]
 
-Outputs:
-    data/models/shape_resnet18/best.pt
-    data/models/shape_resnet18/last.pt
-    data/models/shape_resnet18/history.json
-    data/models/shape_resnet18/eval_val.json
-    data/models/shape_resnet18/eval_test.json
+Outputs (under data/models/<label-col>_resnet18/, e.g. shape_group_resnet18,
+eye_clean_resnet18 -- so heads never overwrite each other; override with --out-dir):
+    best.pt  last.pt  history.json  eval_val.json  eval_test.json
 
 Defaults:
 - ResNet-18 ImageNet-pretrained
@@ -37,7 +34,7 @@ import pandas as pd
 
 
 MANIFEST_DIR = Path("data/processed")
-MODEL_DIR    = Path("data/models/shape_resnet18")
+MODELS_ROOT  = Path("data/models")
 
 
 class FrameDS:
@@ -80,11 +77,17 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--exclude-other", action="store_true",
                    help="Drop 'other' shape_group rows (rare, noisy)")
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--out-dir", type=Path, default=None,
+                   help="Where to write checkpoints (default: data/models/<label-col>_resnet18, "
+                        "so different heads never overwrite each other)")
     return p.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+
+    # Per-head output dir so eye_clean / clarity / shape models never clobber each other.
+    MODEL_DIR = args.out_dir or (MODELS_ROOT / f"{args.label_col}_resnet18")
 
     try:
         import torch
