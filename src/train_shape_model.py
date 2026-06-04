@@ -76,6 +76,9 @@ def parse_args() -> argparse.Namespace:
                    help="One batch fwd/back per split; verifies wiring then exits")
     p.add_argument("--exclude-other", action="store_true",
                    help="Drop 'other' shape_group rows (rare, noisy)")
+    p.add_argument("--no-color-jitter", action="store_true",
+                   help="Disable brightness/contrast augmentation. Use for the color "
+                        "and clarity heads, where jitter destroys the target signal.")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--out-dir", type=Path, default=None,
                    help="Where to write checkpoints (default: data/models/<label-col>_resnet18, "
@@ -148,13 +151,15 @@ def main() -> None:
     # Transforms
     mean = (0.485, 0.456, 0.406)
     std  = (0.229, 0.224, 0.225)
-    train_tf = transforms.Compose([
-        transforms.Resize((args.img_size, args.img_size)),
-        transforms.RandomHorizontalFlip(p=0.5),
-        transforms.ColorJitter(brightness=0.1, contrast=0.1),
-        transforms.ToTensor(),
-        transforms.Normalize(mean, std),
-    ])
+    aug = [transforms.Resize((args.img_size, args.img_size)),
+           transforms.RandomHorizontalFlip(p=0.5)]
+    # Brightness/contrast jitter corrupts the very signal for the color and
+    # clarity heads, so it is opt-out via --no-color-jitter.
+    if not args.no_color_jitter:
+        aug.append(transforms.ColorJitter(brightness=0.1, contrast=0.1))
+    aug += [transforms.ToTensor(), transforms.Normalize(mean, std)]
+    train_tf = transforms.Compose(aug)
+    print(f"INFO: train augmentation: {'flip' if args.no_color_jitter else 'flip + color-jitter'}")
     eval_tf = transforms.Compose([
         transforms.Resize((args.img_size, args.img_size)),
         transforms.ToTensor(),
