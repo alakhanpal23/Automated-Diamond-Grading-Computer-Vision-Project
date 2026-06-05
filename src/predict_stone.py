@@ -74,7 +74,11 @@ def main() -> None:
 
     report: dict = {"stone_id": sid, "n_frames": len(frames), "grade": {}, "inclusions": {}}
 
-    # ---- single-label attribute heads (majority vote across frames) ----
+    # natural class priors for prior correction (matches evaluate_grade.py)
+    import numpy as np
+    prior_df = pd.read_csv(INPUT_CSV, dtype={"stone_id": str}) if INPUT_CSV.exists() else None
+
+    # ---- single-label attribute heads (aggregate logits across views + prior) ----
     for head, dname in SINGLE_HEADS.items():
         mdir = MODELS_ROOT / dname
         if not (mdir / "best.pt").exists():
@@ -86,13 +90,16 @@ def main() -> None:
         model.load_state_dict(torch.load(mdir / "best.pt", map_location=device))
         model.to(device).eval()
         with torch.no_grad():
-            logits = model(batch_at(size))
-            probs = logits.softmax(1)
-            preds = logits.argmax(1).tolist()
-        vote_idx, n = Counter(preds).most_common(1)[0]
-        report["grade"][head] = {"label": classes[vote_idx],
-                                 "vote_frac": round(n / len(preds), 3),
-                                 "mean_prob": round(float(probs[:, vote_idx].mean()), 3)}
+            logits = model(batch_at(size)).mean(0)         # aggregate the 360 views
+        log_prior = torch.zeros(len(classes), device=device)
+        if prior_df is not None:
+            vc = prior_df[head].astype(str).value_counts()
+            freq = np.array([vc.get(c, 1) for c in classes], dtype=float)
+            log_prior = torch.tensor(np.log(freq / freq.sum()), dtype=torch.float32, device=device)
+        adj = logits + log_prior
+        idx = int(adj.argmax())
+        report["grade"][head] = {"label": classes[idx],
+                                 "prob": round(float(adj.softmax(0)[idx]), 3)}
 
     # ---- multi-label inclusion head (max prob across frames per type) ----
     mdir = MODELS_ROOT / INCLUSION_DIR
@@ -138,7 +145,7 @@ def main() -> None:
     for head, p in report["grade"].items():
         cert = p.get("cert") or "?"
         flag = "" if p.get("match") is None else ("  OK" if p["match"] else "  MISMATCH")
-        print(f"  {head:<20} {str(p['label']):<16} (vote {p['vote_frac']:.0%})   cert={cert}{flag}")
+        print(f"  {head:<20} {str(p['label']):<16} (p={p['prob']:.2f})   cert={cert}{flag}")
     if report["inclusions"].get("predicted") is not None:
         print(f"  inclusions  predicted: {report['inclusions']['predicted']}")
         print(f"              cert:      {report['inclusions'].get('cert','?')}")
