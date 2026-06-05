@@ -67,7 +67,12 @@ def main() -> None:
         classes, size = meta["classes"], meta["img_size"]
         m = models.resnet18(weights=None); m.fc = nn.Linear(m.fc.in_features, len(classes))
         m.load_state_dict(torch.load(mdir / "best.pt", map_location=device)); m.to(device).eval()
-        heads[head] = (m, classes, size)
+        # Prior correction: balanced training gives a flat prior; add log(real
+        # class frequency) so predictions match the natural inventory distribution.
+        vc = df[head].astype(str).value_counts()
+        freq = np.array([vc.get(c, 1) for c in classes], dtype=float)
+        log_prior = torch.tensor(np.log(freq / freq.sum()), dtype=torch.float32, device=device)
+        heads[head] = (m, classes, size, log_prior)
     inc = None
     idir = MODELS / "inclusion_resnet18"
     if (idir / "best.pt").exists():
@@ -76,9 +81,9 @@ def main() -> None:
         m.load_state_dict(torch.load(idir / "best.pt", map_location=device)); m.to(device).eval()
         inc = (m, meta["types"], meta.get("threshold", 0.5), meta["img_size"])
 
-    correct = Counter(); total = Counter()
+    correct = Counter(); total = Counter(); correct_raw = Counter()
     inc_tp = inc_fp = inc_fn = 0
-    sizes = sorted({s for _, _, s in heads.values()} | ({inc[3]} if inc else set()))
+    sizes = sorted({s for _, _, s, _ in heads.values()} | ({inc[3]} if inc else set()))
 
     with torch.no_grad():
         for n_done, sid in enumerate(ids, 1):
@@ -88,14 +93,15 @@ def main() -> None:
             pil = [Image.open(f).convert("RGB") for f in frames]
             batches = {s: torch.stack([tf(s)(im) for im in pil]).to(device) for s in sizes}
             row = cert.loc[sid]
-            for head, (m, classes, size) in heads.items():
-                preds = m(batches[size]).argmax(1).tolist()
-                vote = classes[Counter(preds).most_common(1)[0][0]]
+            for head, (m, classes, size, log_prior) in heads.items():
+                logits = m(batches[size]).mean(0)            # aggregate views
                 cv = row.get(head)
                 if pd.isna(cv):
                     continue
                 total[head] += 1
-                correct[head] += int(vote == str(cv))
+                # raw (flat-prior) vs prior-corrected prediction
+                correct_raw[head] += int(classes[int(logits.argmax())] == str(cv))
+                correct[head] += int(classes[int((logits + log_prior).argmax())] == str(cv))
             if inc is not None:
                 m, types, thr, size = inc
                 p = torch.sigmoid(m(batches[size])).cpu().numpy().max(0)
@@ -107,9 +113,10 @@ def main() -> None:
                 print(f"  ...{n_done}/{len(ids)}")
 
     print("\n=== END-TO-END GRADING ON HELD-OUT STONES (per-stone vs GIA cert) ===")
+    print(f"  {'attribute':<20} {'raw':>8} {'prior-corrected':>16}")
     for head in SINGLE:
         if total[head]:
-            print(f"  {head:<20} {correct[head]/total[head]:.1%}   ({correct[head]}/{total[head]})")
+            print(f"  {head:<20} {correct_raw[head]/total[head]:>7.1%} {correct[head]/total[head]:>15.1%}   ({correct[head]}/{total[head]})")
     if inc is not None:
         prec = inc_tp / max(inc_tp + inc_fp, 1)
         rec = inc_tp / max(inc_tp + inc_fn, 1)
