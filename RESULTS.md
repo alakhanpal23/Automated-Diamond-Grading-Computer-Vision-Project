@@ -42,6 +42,25 @@ It needs a UV light source.
 - **Shape** (99.5%) and **color** (67%) generalize to unseen inventory.
 - **Inclusion presence** detects common types (Crystal/Needle/Feather) as a screen.
 
+## Geometry / proportions (the strongest result)
+Proportions are scale-free, so they ARE recoverable from video. Paired approach:
+- **Silhouette (deterministic, `geometry_silhouette.py`)** — L/W ratio to ~0.001
+  for smooth shapes (round/oval/pear); approximate for cornered (emerald/cushion).
+- **ML regressor (`train_geometry.py`, 4500 stones, 384px)** — per-stone held-out MAE:
+
+| Proportion | MAE | "guess the mean" baseline |
+|---|:---:|:---:|
+| depth % | **±0.51** | 3.84 |
+| table % | **±0.77** | 4.05 |
+| crown angle | ±0.20° | 13.4 |
+| pavilion depth | ±0.18 | 16.6 |
+
+Near-GIA precision. Example (round): depth 62.8 vs 62.7, table 57.9 vs 58.0,
+crown 35.6 vs 36.0, pavilion 43.3 vs 43.0. **Carat is NOT predicted from video**
+(no scale reference — pixel footprint vs carat correlation = -0.07). In the
+machine it is **weighed**; weight + these proportions = exact mm dimensions.
+`geometry_report.py` renders the annotated face-up+profile visual.
+
 ## What needs the grading machine, not the video
 - **Clarity & inclusions** → microscope + darkfield (10–40×).
 - **Fluorescence** → UV light source (white-light video lacks the signal).
