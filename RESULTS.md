@@ -80,7 +80,13 @@ so direct profile measurement gives depth% MAE ~22 (vs ML 0.5). Exact determinis
 not recoverable from these videos.
 
 ## What needs the grading machine, not the video
-- **Clarity & inclusions** → microscope + darkfield (10–40×).
+- **Clarity & inclusions** → microscope + darkfield (10–40×) for higher precision.
 - **Fluorescence** → UV light source (white-light video lacks the signal).
-- **Size / proportions** → calibrated silhouette/structured-light 3D (not learnable from video — no scale reference).
-- All heads → **random, larger sampling** + calibration.
+- **Absolute size / carat** → physical scale (proportions ARE recoverable from
+  video at ±0.5%; only the absolute mm scale is missing — no reference in frame).
+- **Exact (not ±0.5) proportions** → calibrated turntable for deterministic 3D.
+
+## Capstone artifact
+`digital_cert.py <stone_id>` → one report per stone (visual `.jpg` + `.json`):
+full predicted grade + geometry + reconstructed mm dimensions + inclusion
+Grad-CAM heatmap, all QC-compared to the GIA cert. Example: data/processed/cert/.
