@@ -13,14 +13,19 @@ Held-out numbers are prior-corrected (log of real class frequency added at
 inference). The "rescued" column uses **random** balanced sampling instead of
 first-N-alphabetical.
 
-| Attribute | Held-out (alphabetical) | **Held-out (random)** | Majority baseline | Verdict |
-|---|:---:|:---:|:---:|---|
-| Shape (10-cls) | 99.5% | **99.2%** | ~21% | ✅ deployable |
-| Eye-clean (2-cls) | 53.5% | **91.0%** | 72% | ✅ deployable |
-| Clarity (VVS/VS/SI) | 6.8% | **68.9%** | 37% | ✅ usable (3-class) |
-| Color (3-cls) | 67.3% | **63.6%** | ~40% | ✅ adds value |
-| Inclusions (multi-label) | P=0.49 R=0.64 | P=0.48 R=0.62 | — | 🟡 useful screen (common types) |
-| Fluorescence (4-cls) | 10.7% | 62.5%* | 58% | ❌ *=majority baseline; no real signal* |
+| Attribute | Held-out (random, prior-corrected) | Majority baseline | Verdict |
+|---|:---:|:---:|---|
+| Shape (10-cls) | **99.0%** | ~21% | ✅ deployable |
+| Eye-clean (2-cls) | **91.7%** | 72% | ✅ deployable |
+| Color (3-cls) | **87.2%** | ~40% | ✅ strong (was 63.6% on 750 stones → 87.2% on 2,500) |
+| Clarity (VVS/VS/SI) | **66.8%** | 37% | ✅ usable (3-class); ordinal 5-class within-1 100% |
+| Inclusions (multi-label) | P=0.49 R=0.62 (calibrated precision 0.51) | — | 🟡 useful screen |
+| Fluorescence (4-cls) | 61.7%* | 58% | ❌ *=majority baseline; no real signal (needs UV)* |
+
+### Improvement round (used more real data + better methods, no fabrication)
+- **Color 63.6% → 87.2%** (held-out): retrained on 2,500 stones vs 750 — the original small sample didn't generalize. More real data was a *major* lever here.
+- **Inclusion precision 0.41 → 0.51**: per-type threshold calibration on val (`calibrate_inclusions.py`), no retraining.
+- **Geometry + L/W**: added `ratio` target → MAE 0.01, fixes cornered shapes (emerald/cushion) the silhouette couldn't.
 
 ## The key lesson
 The original collapse was a **sampling bug, not an impossible task**. First-N
