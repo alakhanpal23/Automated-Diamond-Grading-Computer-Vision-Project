@@ -58,8 +58,20 @@ Proportions are scale-free, so they ARE recoverable from video. Paired approach:
 Near-GIA precision. Example (round): depth 62.8 vs 62.7, table 57.9 vs 58.0,
 crown 35.6 vs 36.0, pavilion 43.3 vs 43.0. **Carat is NOT predicted from video**
 (no scale reference — pixel footprint vs carat correlation = -0.07). In the
-machine it is **weighed**; weight + these proportions = exact mm dimensions.
+machine it is **weighed**; weight + these proportions = mm dimensions.
 `geometry_report.py` renders the annotated face-up+profile visual.
+
+**Real mm dimensions** (`mm_dimensions.py`): silhouette L/W + ML depth% + weighed
+carat -> L/W/D in mm. Held-out (400 stones) vs cert: depth MAE 0.091 mm, width
+0.138 mm, length 0.279 mm (median 0.16). Math check (cert proportions + weight)
+is ~exact at 0.03-0.05 mm, so error is from predicted proportions, not the
+physics. The fill factor C = volume/(L*W*D) is stable per shape (CV 1-4%).
+
+**Deterministic 3D from video does NOT work** (`geometry_3d.py`): the free-tumble
+videos never reach a clean edge-on profile (high aspect = oblique foreshortening),
+so direct profile measurement gives depth% MAE ~22 (vs ML 0.5). Exact deterministic
+3D needs a controlled turntable (known pose, true profile) -- a machine capability,
+not recoverable from these videos.
 
 ## What needs the grading machine, not the video
 - **Clarity & inclusions** → microscope + darkfield (10–40×).
