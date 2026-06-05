@@ -42,6 +42,12 @@ It needs a UV light source.
 - **Shape** (99.5%) and **color** (67%) generalize to unseen inventory.
 - **Inclusion presence** detects common types (Crystal/Needle/Feather) as a screen.
 
+## Clarity, ordinal framing (better than flat classes)
+`train_clarity_ordinal.py` regresses the clarity index (I<SI<VS<VVS<IF). Balanced
+test: exact 57.6%, **within-one-grade 100%**, MAE 0.51 grades. Treating clarity as
+an ordered scale (near-misses penalized less) is the honest model — and within-one
+is the metric that matters (human graders disagree by a grade on borderline stones).
+
 ## Geometry / proportions (the strongest result)
 Proportions are scale-free, so they ARE recoverable from video. Paired approach:
 - **Silhouette (deterministic, `geometry_silhouette.py`)** — L/W ratio to ~0.001
