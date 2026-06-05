@@ -79,6 +79,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--no-color-jitter", action="store_true",
                    help="Disable brightness/contrast augmentation. Use for the color "
                         "and clarity heads, where jitter destroys the target signal.")
+    p.add_argument("--backbone", default="resnet18", choices=("resnet18", "resnet50"),
+                   help="Backbone architecture (resnet50 has more capacity for hard heads)")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--out-dir", type=Path, default=None,
                    help="Where to write checkpoints (default: data/models/<label-col>_resnet18, "
@@ -180,7 +182,10 @@ def main() -> None:
                               persistent_workers=args.workers > 0)
 
     # Model
-    model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+    if args.backbone == "resnet50":
+        model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
+    else:
+        model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
     model.fc = nn.Linear(model.fc.in_features, len(classes))
     model = model.to(device)
 
@@ -194,8 +199,8 @@ def main() -> None:
     # Persist the class order so inference (predict_stone.py) can map model output
     # indices back to labels for this head.
     (MODEL_DIR / "classes.json").write_text(
-        json.dumps({"classes": [str(c) for c in classes], "img_size": args.img_size},
-                   indent=2), encoding="utf-8")
+        json.dumps({"classes": [str(c) for c in classes], "img_size": args.img_size,
+                    "backbone": args.backbone}, indent=2), encoding="utf-8")
 
     def run_eval(loader, name):
         model.eval()
