@@ -23,7 +23,7 @@ import pandas as pd
 MANIFEST = Path("data/processed")
 CSV = Path("data/processed/stone_records.csv")
 OUT = Path("data/models/geometry_resnet18")
-TARGETS = ["depth_pct", "table_pct", "crown_angle", "pavilion_depth"]
+TARGETS = ["depth_pct", "table_pct", "crown_angle", "pavilion_depth", "ratio"]
 
 
 class GeomDS:
