@@ -106,7 +106,8 @@ def main() -> None:
     if (mdir / "best.pt").exists():
         meta = head_meta(mdir)
         types = meta["types"]
-        thr = meta.get("threshold", 0.5)
+        import numpy as _np
+        thr = _np.array(meta.get("thresholds", [meta.get("threshold", 0.5)] * len(types)))
         size = meta.get("img_size", 512)
         model = models.resnet18(weights=None)
         model.fc = nn.Linear(model.fc.in_features, len(types))
@@ -115,7 +116,7 @@ def main() -> None:
         with torch.no_grad():
             p = torch.sigmoid(model(batch_at(size))).cpu().numpy()
         maxp = p.max(0)  # multi-view: present if seen in ANY frame
-        present = [types[k] for k in range(len(types)) if maxp[k] >= thr]
+        present = [types[k] for k in range(len(types)) if maxp[k] >= thr[k]]
         report["inclusions"] = {"predicted": present,
                                 "scores": {types[k]: round(float(maxp[k]), 2) for k in range(len(types))}}
 

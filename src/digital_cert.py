@@ -129,7 +129,8 @@ def main():
     incd = MODELS / "inclusion_resnet18"
     heat = None
     if (incd / "best.pt").exists():
-        meta = json.loads((incd / "classes.json").read_text()); types, thr, size = meta["types"], meta.get("threshold", 0.5), meta["img_size"]
+        meta = json.loads((incd / "classes.json").read_text()); types, size = meta["types"], meta["img_size"]
+        thr = np.array(meta.get("thresholds", [meta.get("threshold", 0.5)] * len(types)))
         m = resnet(len(types)); m.load_state_dict(torch.load(incd / "best.pt", map_location=device)); m.to(device).eval()
         store = {}
         m.layer4.register_forward_hook(lambda a, b, o: store.__setitem__("A", o))
@@ -138,7 +139,7 @@ def main():
         with torch.no_grad():
             p = torch.sigmoid(m(xb)).cpu().numpy()
         maxp = p.max(0)
-        present = [types[k] for k in range(len(types)) if maxp[k] >= thr]
+        present = [types[k] for k in range(len(types)) if maxp[k] >= thr[k]]
         cset = {t for t in str(cert.get("inclusion_types") or "").split("|") if t}
         rep["inclusions"] = {"pred": present, "cert": sorted(cset),
                              "matched": sorted(set(present) & cset)}
