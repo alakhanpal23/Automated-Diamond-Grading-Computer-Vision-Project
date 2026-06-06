@@ -29,20 +29,26 @@ OUT = Path("data/processed/recon")
 
 
 def diamond_faces(table_pct, crown_deg, pav_pct, Rx, Ry, n=8):
-    """Parametric faceted brilliant: octagon table, crown facets, pavilion to culet."""
+    """Parametric brilliant ~ real facet layout: octagon table, 16-point girdle,
+    triangulated crown (bezel/star/upper-girdle look) and pavilion mains + culet."""
     D = 2 * Rx
-    a = np.linspace(0, 2 * np.pi, n, endpoint=False)
     tr = table_pct / 100.0
     crown_h = (Rx - tr * Rx) * np.tan(np.radians(crown_deg))
     pav_d = (pav_pct / 100.0) * D
-    table = np.array([[tr * Rx * np.cos(t), tr * Ry * np.sin(t), crown_h] for t in a])
-    girdle = np.array([[Rx * np.cos(t), Ry * np.sin(t), 0.0] for t in a])
-    culet = np.array([0.0, 0.0, -pav_d])
-    faces = [list(map(list, table))]                                  # table face
-    for i in range(n):
-        j = (i + 1) % n
-        faces.append([list(table[i]), list(table[j]), list(girdle[j]), list(girdle[i])])  # crown
-        faces.append([list(girdle[i]), list(girdle[j]), list(culet)])                     # pavilion
+    at = np.linspace(0, 2 * np.pi, 8, endpoint=False) + np.pi / 8      # table octagon (flats aligned)
+    ag = np.linspace(0, 2 * np.pi, 16, endpoint=False)                 # 16-point girdle
+    table = [[tr * Rx * np.cos(t), tr * Ry * np.sin(t), crown_h] for t in at]
+    girdle = [[Rx * np.cos(t), Ry * np.sin(t), 0.0] for t in ag]
+    culet = [0.0, 0.0, -pav_d]
+    faces = [table]                                                   # table face
+    for i in range(8):                                               # crown: bezel + star + upper-girdle
+        g0, g1, g2 = (2 * i) % 16, (2 * i + 1) % 16, (2 * i + 2) % 16
+        ti, tj = table[i], table[(i + 1) % 8]
+        faces.append([ti, girdle[g0], girdle[g1]])                   # upper-girdle (left)
+        faces.append([ti, girdle[g1], tj])                          # bezel
+        faces.append([tj, girdle[g1], girdle[g2]])                  # upper-girdle (right)
+    for i in range(16):                                             # pavilion -> culet
+        faces.append([girdle[i], girdle[(i + 1) % 16], culet])
     return faces, crown_h, pav_d
 
 
