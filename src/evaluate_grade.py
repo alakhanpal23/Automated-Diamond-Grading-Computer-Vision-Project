@@ -66,7 +66,9 @@ def main() -> None:
             continue
         meta = json.loads((mdir / "classes.json").read_text())
         classes, size = meta["classes"], meta["img_size"]
-        m = models.resnet18(weights=None); m.fc = nn.Linear(m.fc.in_features, len(classes))
+        m = (models.resnet50(weights=None) if meta.get("backbone") == "resnet50"
+             else models.resnet18(weights=None))
+        m.fc = nn.Linear(m.fc.in_features, len(classes))
         m.load_state_dict(torch.load(mdir / "best.pt", map_location=device)); m.to(device).eval()
         # Prior correction: balanced training gives a flat prior; add log(real
         # class frequency) so predictions match the natural inventory distribution.
