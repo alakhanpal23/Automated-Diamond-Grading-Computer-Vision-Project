@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from geometry_silhouette import segment
 from reconstruct_3d import (parametric_outline, real_outline, brilliant_mesh,
                             step_mesh, princess_mesh, STEP_SHAPES)
+from clarity_plot import detect_inclusions, facet_lines
 
 MODELS = Path("data/models")
 FRAMES = Path("data/processed/frames")
@@ -134,7 +135,7 @@ def main():
         prop = dict(zip(gn["targets"], (gm(batch(gn["img_size"])).cpu().numpy() * np.array(gn["std"]) + np.array(gn["mean"])).mean(0)))
 
     # inclusions: presence + per-type positions (Grad-CAM peak on the face-up frame) + heatmap
-    incl_pred, marks, heat = [], [], None
+    incl_pred, heat = [], None
     idir = MODELS / "inclusion_resnet18"
     if (idir / "best.pt").exists():
         meta = json.loads((idir / "classes.json").read_text()); types = meta["types"]
@@ -158,14 +159,6 @@ def main():
         tt = int(mx.argmax()); ff = int(pr[:, tt].argmax()); cam = gradcam(ff, tt)
         base = cv2.cvtColor(np.array(pil[ff]), cv2.COLOR_RGB2BGR)
         heat = cv2.cvtColor(cv2.addWeighted(base, 0.6, cv2.applyColorMap((cam * 255).astype(np.uint8), cv2.COLORMAP_JET), 0.4, 0), cv2.COLOR_BGR2RGB)
-        # per-type marks on the face-up frame, normalized to the outline frame
-        sn = silhouette_norm(fu)
-        if sn:
-            ctr, scale, _ = sn
-            for tn in incl_pred[:6]:
-                cam = gradcam(fu_i, types.index(tn))
-                py, px = np.unravel_index(int(cam.argmax()), cam.shape)
-                marks.append((tn, (px - ctr[0]) / scale, -(py - ctr[1]) / scale))
 
     # mm dimensions
     def area(f):
@@ -238,14 +231,18 @@ def main():
     if heat is not None: ah.imshow(heat); ah.set_title("inclusion heatmap (Grad-CAM)", color=INK, fontsize=11)
     ah.axis("off")
 
-    # clarity plot: outline + inclusions marked
-    ac = fig.add_subplot(gs[1, 1]); ol = real_outline(frames)
-    ac.plot(np.r_[ol[:, 0], ol[0, 0]], np.r_[ol[:, 1], ol[0, 1]], color=INK, lw=1.6)
-    for tn, nx, ny in marks:
-        ac.plot(nx, ny, marker="x", color="#cc0000", ms=9, mew=2)
-        ac.text(nx + 0.05, ny + 0.03, tn[:4], color="#cc0000", fontsize=7)
+    # clarity plot: GIA-style face-up diamond + facet lines + inclusions at detected positions
+    ac = fig.add_subplot(gs[1, 1])
+    ol = parametric_outline(shape, prop.get("ratio", 1.0))
+    if ol is None:
+        ol = real_outline(frames)
+    blobs, _ = detect_inclusions(fu)
+    ac.plot(np.r_[ol[:, 0], ol[0, 0]], np.r_[ol[:, 1], ol[0, 1]], color=INK, lw=1.8)
+    facet_lines(ac, ol, shape)
+    for nx, ny, area_ in blobs:
+        ac.plot(nx, ny, marker="o", color="#d11", ms=3 + min(7, area_ ** 0.5 / 3), alpha=0.85)
     ac.set_xlim(-1.25, 1.25); ac.set_ylim(-1.25, 1.25); ac.set_aspect("equal"); ac.axis("off")
-    ac.set_title("clarity plot — inclusions marked", color=INK, fontsize=11)
+    ac.set_title(f"clarity plot — {len(blobs)} inclusions marked", color=INK, fontsize=11)
 
     # key to symbols
     ak = fig.add_subplot(gs[1, 2]); ak.axis("off")
