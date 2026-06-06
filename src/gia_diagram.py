@@ -62,23 +62,33 @@ def main():
     pav_h = max(depth - crown_h - gt, depth * 0.4)
     pav_deg = math.degrees(math.atan2(pav_h, R))
 
-    # profile outline
+    # ---- profile outline (shape-aware: step cut vs brilliant) ----
+    is_step = str(cert.get("shape_group")) in {"emerald", "asscher"}
     yt, yg0, yg1, yc = crown_h, 0.0, -gt, -(gt + pav_h)
-    xs = [-table_r, table_r, R, R, 0, -R, -R, -table_r]
-    ys = [yt, yt, yg0, yg1, yc, yg1, yg0, yt]
+    keel_w = 0.22 * R if is_step else 0.0
+    if is_step:                                                       # terraced crown + pavilion, keel
+        mx, mh = table_r + 0.5 * (R - table_r), yt * 0.5
+        px, pm = keel_w / 2 + 0.5 * (R - keel_w / 2), yg1 - pav_h * 0.5
+        right = [(table_r, yt), (mx, yt), (mx, mh), (R, mh), (R, yg0), (R, yg1),
+                 (px, yg1), (px, pm), (keel_w / 2, pm), (keel_w / 2, yc)]
+    else:                                                            # brilliant: smooth crown + point culet
+        right = [(table_r, yt), (R, yg0), (R, yg1), (0.0, yc)]
+    pts = right + [(-x, y) for x, y in reversed(right)] + [right[0]]
 
     fig, (axd, axt) = plt.subplots(1, 2, figsize=(10.5, 5.2), gridspec_kw={"width_ratios": [1.25, 1]})
     fig.patch.set_facecolor("white")
 
     # ---- diagram ----
-    axd.plot(xs, ys, color=INK, lw=2)
-    axd.plot([-table_r, table_r], [yt, yt], color=INK, lw=2)          # table
-    axd.plot([0, 0], [yt, yc], color=INK, lw=0.8, ls=(0, (4, 4)))     # axis
-    axd.plot([-R, R], [yg0, yg0], color=INK, lw=0.8, ls=(0, (4, 4)))  # girdle line
-    # crown + pavilion facet hint lines
-    for sgn in (-1, 1):
-        axd.plot([sgn * table_r, sgn * R], [yt, yg0], color=INK, lw=1)
-        axd.plot([sgn * R, 0], [yg1, yc], color=INK, lw=1)
+    axd.plot([p[0] for p in pts], [p[1] for p in pts], color=INK, lw=2.2)
+    axd.plot([-table_r, table_r], [yt, yt], color=INK, lw=2.2)        # table
+    axd.plot([0, 0], [yt, yc], color=INK, lw=0.7, ls=(0, (4, 4)))     # center axis
+    axd.plot([-R, R], [yg0, yg0], color=INK, lw=0.7)                  # girdle top
+    axd.plot([-R, R], [yg1, yg1], color=INK, lw=0.7)                  # girdle bottom
+    if not is_step:                                                  # brilliant facet hint lines
+        for sgn in (-1, 1):
+            axd.plot([sgn * table_r, sgn * (table_r + (R - table_r) * 0.5)],
+                     [yt, yt * 0.5], color=INK, lw=0.6)               # star facet
+            axd.plot([sgn * R, sgn * R * 0.42], [yg1, yc * 0.55], color=INK, lw=0.6)  # lower-girdle
 
     def dim_h(x0, x1, y, label):
         axd.annotate("", (x0, y), (x1, y), arrowprops=dict(arrowstyle="<->", color=INK, lw=1))
@@ -94,7 +104,7 @@ def main():
     axd.text(R - 0.55, yg0 + 0.12, f"{crown_deg:.1f}°", color=INK, fontsize=9)
     axd.add_patch(Arc((R, yg0), 0.7, 0.7, angle=0, theta1=180, theta2=180 + pav_deg, color=INK, lw=1.2))
     axd.text(R - 0.62, yg0 - 0.22, f"{pav_deg:.1f}°", color=INK, fontsize=9)
-    axd.text(0, yc - 0.12, "Culet: None", ha="center", va="top", color=INK, fontsize=9)
+    axd.text(0, yc - 0.12, "Keel" if is_step else "Culet: None", ha="center", va="top", color=INK, fontsize=9)
     axd.set_xlim(-R - 0.8, R + 1.1); axd.set_ylim(yc - 0.5, yt + 0.5)
     axd.set_aspect("equal"); axd.axis("off")
     axd.set_title("PROPORTIONS", color=INK, fontsize=12, fontweight="bold", loc="left")
