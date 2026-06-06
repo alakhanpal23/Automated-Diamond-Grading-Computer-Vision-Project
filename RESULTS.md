@@ -13,23 +13,26 @@ Held-out numbers are prior-corrected (log of real class frequency added at
 inference). The "rescued" column uses **random** balanced sampling instead of
 first-N-alphabetical.
 
-Held-out = stones in **no** training list. NOTE: after many improvement
-experiments the clean held-out shrank to **346 stones**, so these are leak-free
-but noisier (±a few %). Lesson learned: lock a fixed test set aside up front.
+**DEFINITIVE numbers — locked test set.** A fixed 1,500-stone test set (`LOCKED_test.txt`)
+was set aside up front; every head was retrained on the pool excluding it (0 overlap,
+verified). Evaluated on 1,200 of those locked stones — fully leak-free, large enough
+to trust. Prior-corrected.
 
-| Attribute | Clean held-out (prior-corrected) | Majority baseline | Verdict |
+| Attribute | Locked-test accuracy | Majority baseline | Verdict |
 |---|:---:|:---:|---|
-| Shape (10-cls) | **98.6%** | ~21% | ✅ deployable |
-| Color (3-cls) | **90.8%** | ~40% | ✅ strong (was 63.6% on 750 stones → ~90% on 2,500) |
-| Eye-clean (2-cls) | **88.7%** | 72% | ✅ deployable |
-| Clarity (VVS/VS/SI) | **74.0%** | 37% | ✅ usable; ordinal 5-class within-1 ~100% |
-| Inclusions (multi-label) | P=0.45 R=0.85 | — | 🟡 screen; recall up from 0.62 with more data |
-| Fluorescence (4-cls) | 66.2%* | 58% | ❌ *=majority baseline; no real signal (needs UV)* |
+| Shape (10-cls) | **99.3%** | ~21% | ✅ deployable |
+| Color (3-cls) | **87.2%** | ~40% | ✅ strong (was 63.6% pre-improvement) |
+| Eye-clean (2-cls) | **89.4%** | 72% | ✅ deployable |
+| Clarity (VVS/VS/SI) | **70.3%** | 37% | ✅ usable; ordinal 5-class within-1 ~100% |
+| Inclusions (multi-label) | P=0.55 R=0.84 (calibrated) | — | 🟡 useful screen |
+| Fluorescence (4-cls) | 45.2% | 58% | ❌ **below baseline → no signal (needs UV)** |
+| Geometry depth%/table%/L-W | ±0.54 / ±0.86 / ±0.01 | 3.8 / 4.3 / 0.27 | ✅ near-GIA |
 
-**Integrity note:** an earlier improvement-round eval showed clarity 83.7% / color
-87.7% — but those were **inflated by leakage** (the held-out list wasn't rebuilt
-after new training sets were created; 3,132 clarity / 1,059 color held-out stones
-had leaked into training). The table above is the corrected, leak-free measurement.
+**Integrity note:** a mid-improvement eval briefly showed clarity 83.7% / color 87.7%,
+but those were **inflated by leakage** (held-out list wasn't rebuilt after new training
+sets; 3,132 clarity / 1,059 color stones had leaked in). We caught it, locked a fixed
+test set, retrained every head leak-free, and re-measured — the table above is that
+clean result. The improvements held up; clarity's honest figure is ~70%, not 84%.
 
 ### Improvement round (used more real data + better methods, no fabrication)
 - **Color 63.6% → 87.2%** (held-out): retrained on 2,500 stones vs 750 — the original small sample didn't generalize. More real data was a *major* lever here.

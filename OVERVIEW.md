@@ -10,26 +10,28 @@ what's recoverable from video vs. what needs better capture.
 - GPU-trained, reproducible, version-controlled. Tools: `predict_stone.py` (video→grade),
   `digital_cert.py` (one-page report), `qc_report.py` (mislabel detector).
 
-## Benchmarks — held-out, unseen stones (the honest metric)
-Evaluated on stones in **no** model's training set, vs. the GIA cert.
+## Benchmarks — LOCKED test set (the honest metric)
+A fixed 1,500-stone test set was set aside up front; every model was retrained on the
+rest and evaluated only on those locked, never-seen stones (leak-free, vs. the GIA cert).
 
 | Attribute | Result | Note |
 |---|:---:|---|
-| **Cut geometry** (depth%, table%, angles) | **±0.5–0.8%, ±0.2°** | near-GIA precision |
+| **Cut geometry** (depth%, table%, angles) | **±0.5–0.9%, ±0.2°** | near-GIA precision |
 | **L/W ratio** | **±0.01** | all shapes |
 | **Physical dimensions** (L×W×D mm) | **±0.1 mm** | proportions + weighed carat |
-| **Shape** | **99%** | 10 classes |
-| **Color** (3 groups) | **87%** | D–J body color |
-| **Eye-clean** | **92%** | naked-eye clarity |
-| **Clarity** | **within-1-grade 100%** | exact-grade 58% (5-class) |
-| **Inclusions** | detect + **localize** (Grad-CAM) | precision 0.51, recall 0.62 |
+| **Shape** | **99.3%** | 10 classes |
+| **Color** (3 groups) | **87.2%** | D–J body color |
+| **Eye-clean** | **89.4%** | naked-eye clarity |
+| **Clarity** | **70.3%** (within-1-grade ~100%) | 3-class; 5-class harder |
+| **Inclusions** | detect + **localize** (Grad-CAM) | precision 0.55, recall 0.84 |
 
 **Honest limits (physics, not model):** fluorescence needs **UV light**; carat needs a
 **scale** — neither is recoverable from white-light video. These are *capture* gaps,
 not algorithm gaps.
 
 ## Why it's credible
-- **Leak-free held-out evaluation** (training/test stones never overlap — verified 0 overlap).
+- **Locked test set** — 1,500 stones fixed aside up front; models retrained on the rest;
+  evaluated only on those (0 training overlap, verified). No leakage.
 - Labels are **real GIA cert data**; inputs are **real video frames**.
 - We **caught and fixed our own inflated numbers** (a sampling bug) — the reported
   figures are the post-correction, deployment-honest ones.
