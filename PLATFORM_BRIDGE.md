@@ -59,118 +59,91 @@ docker compose -f docker-compose.minio.yml down
 
 ---
 
-## Step 2 — AWS Phase 0 (account, bucket, credentials)
+## Step 2 — AWS Phase 0 (DECISION: the platform owns the bucket)
 
-### 2.0 — Decide WHOSE account the bucket lives in (do this first)
+The bucket and the ingest trigger live in the **platform's** AWS account. The
+bridge side creates **nothing** in AWS — we only receive credentials and use them.
+(If that ever changes, see the Appendix for the create-it-yourself steps.)
 
-This is the one architectural choice that needs the platform team:
+### 2.1 — Request access from the platform team
 
-- **Platform owns the bucket (recommended):** they create it, wire the ingest
-  Lambda's `metadata.json` notification, and hand you an IAM user/role that can
-  only `PutObject` under `raw/parcels/*`. You skip 2.2–2.3 and just configure the
-  creds they give you (2.4). Cleanest — the trigger and bucket stay on their side.
-- **You own the bucket:** you create it (2.2–2.3) and grant their Lambda
-  cross-account read + notification rights. More moving parts; only if required.
+Send them this exact ask:
 
-Confirm which before creating anything. The rest assumes you're creating it.
+> We're ready to upload capture packets to your ingest bucket. Please provide:
+> 1. **Bucket name** and **region**.
+> 2. **Credentials** scoped to write packets — either
+>    (a) an IAM access key for a user, or
+>    (b) a **role ARN** we can assume (preferred if you use IAM Identity Center),
+>    with this least-privilege policy on `arn:aws:s3:::<bucket>/raw/parcels/*`:
+>    `s3:PutObject`, `s3:GetObject` (we do a `head_object` idempotency check), and
+>    `s3:ListBucket` on the bucket scoped to prefix `raw/parcels/*`.
+> 3. Confirm the **ingest notification is wired** (S3 `ObjectCreated` → Lambda,
+>    suffix `metadata.json`) so dropping a packet auto-creates labeling tasks.
+> 4. A copy of `schemas/metadata.schema.json` (commit `19ec4fe`) so we can
+>    validate every packet locally with `--schema` before upload.
+> 5. The `parcel_id` / `run_id` convention you want us to use (we default to
+>    `PARCEL_AARIN01` / `RUN001`).
 
-### 2.1 — Account & region
-- Use an existing AWS account or create one at https://aws.amazon.com/ (needs a
-  billing method). Enable MFA on the root user; never use root for daily work.
-- Pick **one region** and use it everywhere (bucket, Lambda, creds). Match the
-  platform's region. Example below: `us-east-1`.
-
-### 2.2 — Create the S3 bucket
-```bash
-# us-east-1 (no LocationConstraint):
-aws s3api create-bucket --bucket kara-captures --region us-east-1
-
-# any other region needs the location constraint, e.g. eu-west-1:
-# aws s3api create-bucket --bucket kara-captures --region eu-west-1 \
-#   --create-bucket-configuration LocationConstraint=eu-west-1
-```
-Bucket names are globally unique — pick your own (e.g. `kara-captures-<org>`).
-
-### 2.3 — Harden the bucket (block public access + encryption)
-```bash
-aws s3api put-public-access-block --bucket kara-captures \
-  --public-access-block-configuration \
-  BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
-
-aws s3api put-bucket-encryption --bucket kara-captures \
-  --server-side-encryption-configuration \
-  '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
-```
-
-### 2.4 — Least-privilege IAM for the packetizer
-The packetizer needs only `PutObject` (upload) and `GetObject` (the idempotency
-`head_object` check) under the parcels prefix, plus `ListBucket` (optional).
-
-`packetizer-policy.json`:
+The least-privilege policy they should attach (for their reference):
 ```json
 {
   "Version": "2012-10-17",
   "Statement": [
-    {
-      "Sid": "WriteAndCheckPackets",
-      "Effect": "Allow",
-      "Action": ["s3:PutObject", "s3:GetObject"],
-      "Resource": "arn:aws:s3:::kara-captures/raw/parcels/*"
-    },
-    {
-      "Sid": "ListBucketScoped",
-      "Effect": "Allow",
-      "Action": "s3:ListBucket",
-      "Resource": "arn:aws:s3:::kara-captures",
-      "Condition": {"StringLike": {"s3:prefix": "raw/parcels/*"}}
-    }
+    {"Sid": "WriteAndCheckPackets", "Effect": "Allow",
+     "Action": ["s3:PutObject", "s3:GetObject"],
+     "Resource": "arn:aws:s3:::<BUCKET>/raw/parcels/*"},
+    {"Sid": "ListBucketScoped", "Effect": "Allow",
+     "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::<BUCKET>",
+     "Condition": {"StringLike": {"s3:prefix": "raw/parcels/*"}}}
   ]
 }
 ```
-```bash
-aws iam create-policy --policy-name KaraPacketizerWrite \
-  --policy-document file://packetizer-policy.json
 
-aws iam create-user --user-name kara-packetizer
-aws iam attach-user-policy --user-name kara-packetizer \
-  --policy-arn arn:aws:iam::<ACCOUNT_ID>:policy/KaraPacketizerWrite
+### 2.2 — Configure the credentials they give you
 
-aws iam create-access-key --user-name kara-packetizer   # capture AccessKeyId + SecretAccessKey
-```
-> Prefer a **role** (assumed via SSO/STS) over a long-lived user key if your org
-> uses IAM Identity Center. The packetizer's `--profile` works with either.
-
-### 2.5 — Configure credentials locally
+**If they give an access key:**
 ```bash
 aws configure --profile kara
-#   AWS Access Key ID     : <from create-access-key>
-#   AWS Secret Access Key : <from create-access-key>
-#   Default region name   : us-east-1
+#   AWS Access Key ID     : <from platform team>
+#   AWS Secret Access Key : <from platform team>
+#   Default region name   : <their region, e.g. us-east-1>
 #   Default output format : json
-
-# sanity check:
-aws --profile kara s3 ls s3://kara-captures/
 ```
-Alternatives the packetizer honors: `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`
-env vars, or the default credential chain (instance/SSO) with no `--profile`.
+
+**If they give a role ARN to assume**, add to `~/.aws/config`:
+```ini
+[profile kara]
+role_arn = arn:aws:iam::<THEIR_ACCOUNT_ID>:role/<RoleName>
+source_profile = <your-base-profile>   # or credential_source = Environment / Ec2InstanceMetadata
+region = us-east-1
+```
+
+**Sanity check** (lists only our prefix — full bucket list may be denied, which is
+fine):
+```bash
+aws --profile kara s3 ls s3://<BUCKET>/raw/parcels/
+```
+The packetizer also honors `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` env vars or
+the default credential chain (no `--profile`).
 
 ---
 
 ## Step 3 — Real upload
+Use the bucket name the platform gave you (shown as `<BUCKET>` below).
 ```bash
 python src/packetizer.py --sample 3 --seed 42 --darkfield-tail 4 \
-    --bucket kara-captures --profile kara
+    --bucket <BUCKET> --profile kara
 
 # scale up once happy (stratified sample, or an explicit list):
 python src/packetizer.py --sample 200 --seed 42 --stratify-col shape_group \
-    --bucket kara-captures --profile kara
-python src/packetizer.py --stone-list my_stones.txt --bucket kara-captures --profile kara
+    --bucket <BUCKET> --profile kara
+python src/packetizer.py --stone-list my_stones.txt --bucket <BUCKET> --profile kara
 ```
 Add `--schema /path/to/platform/schemas/metadata.schema.json` to validate every
 packet against the platform's schema before it's sent.
 
 ## Step 4 — Verify & operate
-- `aws --profile kara s3 ls --recursive s3://kara-captures/raw/parcels/ | tail`
+- `aws --profile kara s3 ls --recursive s3://<BUCKET>/raw/parcels/ | tail`
 - Per-run log: `data/processed/packetizer_log.csv` (stone_id, n_frames,
   n_darkfield, bytes_uploaded, dest, status, error, timestamp).
 - Re-runs are **idempotent** (skip stones whose `metadata.json` already exists);
@@ -189,3 +162,34 @@ packet against the platform's schema before it's sent.
   blind-grading demo).
 - **Cost:** a few hundred packets is pennies of S3 storage + PUTs. Frames are
   ~50 KB each; ~12 per stone.
+
+---
+
+## Appendix — if WE ever own the bucket (not the current plan)
+
+Current decision: the **platform owns the bucket** (Step 2). Keep this only as a
+fallback if that changes. You'd create the bucket and grant the platform's ingest
+Lambda cross-account access + the `metadata.json` notification.
+
+```bash
+# Region us-east-1 (other regions need --create-bucket-configuration LocationConstraint=...)
+aws s3api create-bucket --bucket <BUCKET> --region us-east-1
+
+# Block public access + default encryption
+aws s3api put-public-access-block --bucket <BUCKET> \
+  --public-access-block-configuration \
+  BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+aws s3api put-bucket-encryption --bucket <BUCKET> \
+  --server-side-encryption-configuration \
+  '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+
+# Packetizer IAM (same least-privilege policy as Step 2.1, attached to a user you own)
+aws iam create-policy --policy-name KaraPacketizerWrite --policy-document file://packetizer-policy.json
+aws iam create-user --user-name kara-packetizer
+aws iam attach-user-policy --user-name kara-packetizer \
+  --policy-arn arn:aws:iam::<ACCOUNT_ID>:policy/KaraPacketizerWrite
+aws iam create-access-key --user-name kara-packetizer
+```
+You'd then coordinate with the platform team to add their Lambda's execution role
+to a bucket policy and configure the S3 → Lambda notification on suffix
+`metadata.json`. (Not needed under the current platform-owned plan.)
