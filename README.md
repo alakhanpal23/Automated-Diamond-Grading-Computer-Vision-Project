@@ -1,80 +1,74 @@
-# aarin-stones-poc
+# aarin-stones-poc — diamond grading from video
 
-Computer-vision proof-of-concept for diamonds/gemstones. Each stone has a 360°
-`mp4` video and a GIA certificate PDF. The pipeline turns videos into labelled
-still frames and trains image models to predict a stone's attributes (shape
-first; clarity / eye-clean / colour / inclusions are the harder follow-ons).
+Computer-vision system that reads a diamond's GIA-style grade from its 360° video,
+over **10,497 real GIA-certified stones**. It predicts shape, color, clarity,
+eye-clean, fluorescence and inclusions, reconstructs the cut geometry and mm
+dimensions, and assembles a one-page "digital cert" with a QC comparison to the
+real cert. See **`OVERVIEW.md`** (advisor one-pager), **`RESULTS.md`** (full
+numbers), **`CAPTURE_RIG.md`** (the hardware path).
 
-Inventory: **10,537 stones** (10,498 with media) from `Aarin_Complied_Stones.xlsx`.
+## Definitive results — locked test set (1,200 stones, leak-free)
+| Attribute | Result |
+|---|:---:|
+| Shape | **99.3%** |
+| Color | **87.2%** |
+| Eye-clean | **89.4%** |
+| Clarity (3-class; within-1 ~100%) | **70.3%** |
+| Geometry (depth% / table% / L-W) | **±0.5 / ±0.9 / ±0.01** |
+| mm dimensions (L×W×D) | **±0.1 mm** |
+| Inclusions | detect + localize, **P0.55 R0.84** |
+| Fluorescence | no signal — needs UV (physics) |
+
+A fixed 1,500-stone test set is held out up front; every head is retrained on the
+rest (0 overlap, verified). Carat is not predictable from video (no scale) and is
+*weighed* in the machine. Honest limits are capture limits, not algorithm limits.
 
 ## Pipeline
+| Step | Script |
+|---|---|
+| 1. Ingest spreadsheet → CSV | `01_ingest_excel.py` |
+| 2. Download videos | `02_download_media.py` |
+| 3. Extract frames (512px) | `03_extract_frames.py` |
+| 4. Build train/val/test manifest | `04_build_manifest.py` |
+| 5. Cert inclusion ground truth | `05_extract_cert_inclusions.py` |
 
-| Step | Script | Output |
-|------|--------|--------|
-| 1. Ingest | `src/01_ingest_excel.py` | `data/processed/stone_records.csv` (+ parquet, QA report) |
-| 2. Download media | `src/02_download_media.py` | `data/raw/videos/{id}.mp4` (PDFs optional, **off by default**) |
-| 3. Extract frames | `src/03_extract_frames.py` | `data/processed/frames/{id}/frame_NN.jpg` |
-| 4. Build manifest | `src/04_build_manifest.py` | `manifest_{train,val,test}.csv` |
-| 5. Train a head | `src/train_shape_model.py` | `data/models/<label>_resnet18/best.pt` |
-| 6. Evaluate | `src/evaluate.py` | per-frame **and** per-stone accuracy |
-| (aux) Cert inclusions | `src/05_extract_cert_inclusions.py` | `cert_inclusions.{csv,jsonl}` |
+## Models & tools
+| Script | What it does |
+|---|---|
+| `train_shape_model.py` | any single-label head (shape/color/clarity/eye-clean/fluorescence); `--label-col`, `--backbone`, `--no-color-jitter` |
+| `train_inclusion.py` | multi-label inclusion model (multi-view max-agg) |
+| `calibrate_inclusions.py` | per-type decision thresholds (precision) |
+| `train_clarity_ordinal.py` | clarity as an ordered scale (within-1 metric) |
+| `train_geometry.py` | proportion regressor (depth%/table%/crown/pavilion/ratio) |
+| `geometry_silhouette.py` | deterministic L/W + outline montage |
+| `geometry_3d.py` | deterministic profile geometry (exact with a turntable; fails on free-tumble video) |
+| `mm_dimensions.py` | proportions + weighed carat → real mm dimensions |
+| `reconstruct_3d.py` | parametric 3D diamond rendered from predicted proportions |
+| `localize_inclusions.py` | Grad-CAM "where are the inclusions" heatmaps |
+| `predict_stone.py` | full grade for one stone (prior-corrected) + cert QC |
+| `digital_cert.py` | one-page visual report (grade + geometry + inclusion heatmap + QC) |
+| `evaluate_grade.py` | end-to-end held-out scorecard (prior correction, TTA, backbones) |
+| `qc_report.py` | flag mislabeled / swapped certified stones (shape, 99%) |
+| `evaluate.py` | per-frame + per-stone accuracy for a single head |
 
-### Quick start (POC)
-
+## Quick start
 ```bash
-pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
-pip install -r requirements.txt
-
-# one-time: put the media token in config/.env  (see config/.env.example)
+pip install torch==2.6.0+cu124 torchvision==0.21.0+cu124 --index-url https://download.pytorch.org/whl/cu124
+pip install -r requirements.txt          # numpy, opencv, pymupdf, matplotlib, ...
+# put the media token in config/.env (see config/.env.example)
 python src/01_ingest_excel.py
 python src/02_download_media.py --kind videos --workers 8 --shuffle
-python src/03_extract_frames.py --stone-list <ids.txt> --frames-per-video 12 --size 224 --quality 85 --workers 4
-python src/04_build_manifest.py --min-frames 12 --strat-col shape_group
-python src/train_shape_model.py --label-col shape_group --epochs 8 --workers 4
-python src/evaluate.py --label-col shape_group --split test
+python src/03_extract_frames.py --frames-per-video 12 --size 512 --quality 95 --workers 4
+# grade one stone (needs trained models in data/models/):
+python src/digital_cert.py <stone_id>
 ```
 
-The extractor is resumable (skips folders that already hold the expected frame
-count) and writes `frame_extraction_log.csv`. `--stone-list` restricts work to a
-chosen set of stone ids — use it to build **shape/label-balanced** subsets
-(`head(N)` is round-heavy and not representative).
-
-## Results so far (ResNet-18, ImageNet-pretrained, CPU)
-
-| Head | Setup | Test accuracy |
-|------|-------|---------------|
-| Shape (5-class `shape_raw`) | balanced 600 stones | **99.4%** (per-frame) |
-| Eye-clean (binary) | balanced 700, shape-controlled | **75.0%** (per-frame; recall 74/76) |
-
-Shape is an easy task (distinct outlines, clean 360° views). Eye-clean is a
-genuinely hard naked-eye judgement — 75% is well above the 50% shape-controlled
-baseline but shows the grading-level frontier. Run `evaluate.py` for the
-per-stone (majority-vote) numbers, which is the metric that matters in practice.
-
-## Inclusions from GIA PDFs (`src/05_extract_cert_inclusions.py`)
-
-The spreadsheet lists inclusion **types** (`inclusion_types`) but **not their
-positions**. The GIA PDF's "Clarity Characteristics" plot does: red symbols mark
-each inclusion's type, position and approximate size. The extractor pulls:
-
-* **Types** from the authoritative "KEY TO SYMBOLS" text — validated 100% match
-  to the spreadsheet on a 30-stone IF→I sample.
-* **Positions / count** from red-mark detection on the native diagram image —
-  counts track clarity grade (I1≈13, SI≈10–17, VS≈4, VVS≈2–3 marks).
-
-Caveat (printed on every report): the plot is an *approximate schematic*, "all
-clarity characteristics may not be shown". It is **not** registered to the video
-frame, so true inclusion *localisation on the video* needs a schematic→frame
-registration step or manual annotation — a separate project. Type/presence,
-clarity grade and eye-clean are trainable directly from frames today.
-
-## Storage note
-
-Videos for the full set are ~23 GB; **all frames are only ~0.9 GB** (224px). On a
-disk-constrained machine, prefer a stream-and-delete flow (download → extract →
-delete the video) — frames are the only artefact training needs.
+## Key lessons (the honest ones)
+- **Random (not first-N) sampling** for balanced subsets — alphabetical sampling leaked vendor/batch cues and inflated numbers.
+- **Prior correction** at inference — balanced training gives a flat prior; add log(real class frequency).
+- **Lock a fixed test set up front** — we caught our own leakage and re-measured cleanly.
+- **The ceiling is the data:** 620px video caps clarity/inclusions; fluorescence needs UV; carat needs a scale. More training won't break these — the **capture rig** will.
 
 ## Layout / gitignore
-
-`config/.env` (media token), `data/raw/`, `data/processed/`, `data/models/`,
-and `*.pt/*.mp4/*.jpg` are gitignored. Only code is tracked.
+`config/.env` (token), `data/raw/`, `data/processed/`, `data/models/`, `*.pt/*.mp4/*.jpg`
+are gitignored. Only code + docs are tracked. GPU: trains on CUDA automatically (`device=auto`).
