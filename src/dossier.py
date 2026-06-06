@@ -186,7 +186,8 @@ def main():
     Ry = Rx / max(draw_ratio, 0.5)
     par = parametric_outline(shape, draw_ratio)
     outline = par if par is not None else real_outline(frames)
-    outline = outline * [Rx / max(np.abs(outline[:, 0]).max(), 1e-6), Ry / max(np.abs(outline[:, 1]).max(), 1e-6)]
+    # long axis = y / length = Rx, short axis = x / width = Ry
+    outline = outline * [Ry / max(np.abs(outline[:, 0]).max(), 1e-6), Rx / max(np.abs(outline[:, 1]).max(), 1e-6)]
     tf_ = prop["table_pct"] / 100.0
     td = prop["depth_pct"] / 100.0 * 2 * Ry
     crown_h = (Rx - tf_ * Rx) * math.tan(math.radians(prop["crown_angle"])) if prop["crown_angle"] > 5 else td * 0.30

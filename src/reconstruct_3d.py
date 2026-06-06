@@ -81,13 +81,21 @@ def _edges(corners, per=5):
 def parametric_outline(shape, ratio):
     """Clean, crisp-cornered outline for shapes the silhouette rounds off.
     Returns None for smooth shapes (use the real silhouette instead)."""
-    wx, wy = 1.0, 1.0 / max(ratio, 0.5)
+    # GIA display orientation: LONG axis vertical (y), short axis horizontal (x).
+    wx, wy = 1.0 / max(ratio, 0.5), 1.0
     if shape == "round":                                             # perfect circle
         a = np.linspace(0, 2 * np.pi, 48, endpoint=False)
         return np.c_[np.cos(a), np.sin(a)]
     if shape == "oval":                                              # clean ellipse from L/W
         a = np.linspace(0, 2 * np.pi, 48, endpoint=False)
         return np.c_[np.cos(a) * wx, np.sin(a) * wy]
+    if shape == "marquise":                                          # navette: two arcs meeting at sharp tips
+        a_, b_ = wy, wx                                              # a_ = half-length (y), b_ = half-width (x)
+        xc = (b_ ** 2 - a_ ** 2) / (2 * b_)                          # arc centre on x-axis (xc < 0)
+        r2 = a_ ** 2 + xc ** 2
+        ys = np.linspace(-a_, a_, 26)
+        xr = xc + np.sqrt(np.maximum(r2 - ys ** 2, 0))               # right arc; tips at (0, ±a_)
+        return np.vstack([np.c_[xr, ys], np.c_[-xr[::-1], ys[::-1]]])
     if shape in {"emerald", "radiant"}:                              # cut-corner rectangle (sharp)
         c = 0.10
         cor = [(wx, wy - c * wy), (wx - c * wx, wy), (-(wx - c * wx), wy), (-wx, wy - c * wy),
@@ -213,9 +221,9 @@ def main():
     # crisp parametric outline for cornered shapes; real silhouette for smooth ones
     par = parametric_outline(shape, float(cert.get("ratio", 1.0)) if not pd.isna(cert.get("ratio")) else 1.0)
     outline = par if par is not None else real_outline(frames)
-    # scale outline to mm so x:y matches the real L/W
-    sx = Rx / max(np.abs(outline[:, 0]).max(), 1e-6)
-    sy = (Rx / max(prop.get("ratio", 1.0), 0.5)) / max(np.abs(outline[:, 1]).max(), 1e-6)
+    # scale outline to mm so x:y matches the real L/W (long axis = y / length = Rx)
+    sx = (Rx / max(prop.get("ratio", 1.0), 0.5)) / max(np.abs(outline[:, 0]).max(), 1e-6)  # short -> x
+    sy = Rx / max(np.abs(outline[:, 1]).max(), 1e-6)                                       # long  -> y
     outline = outline * [sx, sy]
 
     Ry = Rx / max(prop.get("ratio", 1.0), 0.5)
