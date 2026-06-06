@@ -48,11 +48,11 @@ def predict(sid):
     return dict(zip(tg, p))
 
 
-def main():
-    sid = sys.argv[1] if len(sys.argv) > 1 else sys.exit("usage: gia_diagram.py <stone_id>")
-    prop = predict(sid)
-    cert = pd.read_csv(CSV, dtype={"stone_id": str}).set_index("stone_id").loc[sid]
-
+def draw_proportions(ax, prop, shape):
+    """Draw the GIA side-profile cross-section on `ax` from predicted proportions.
+    Shape-aware (step-cut terraces+keel vs brilliant smooth crown + point culet),
+    with table/depth dimensions, crown AND pavilion angle arcs, girdle thickness,
+    facet hint lines and a culet/keel label. Returns (crown_deg, pav_deg)."""
     R = 1.0
     table_r = prop["table_pct"] / 100.0 * R
     depth = prop["depth_pct"] / 100.0 * 2 * R
@@ -62,8 +62,7 @@ def main():
     pav_h = max(depth - crown_h - gt, depth * 0.4)
     pav_deg = math.degrees(math.atan2(pav_h, R))
 
-    # ---- profile outline (shape-aware: step cut vs brilliant) ----
-    is_step = str(cert.get("shape_group")) in {"emerald", "asscher"}
+    is_step = shape in {"emerald", "asscher"}
     yt, yg0, yg1, yc = crown_h, 0.0, -gt, -(gt + pav_h)
     keel_w = 0.22 * R if is_step else 0.0
     if is_step:                                                       # terraced crown + pavilion, keel
@@ -75,38 +74,47 @@ def main():
         right = [(table_r, yt), (R, yg0), (R, yg1), (0.0, yc)]
     pts = right + [(-x, y) for x, y in reversed(right)] + [right[0]]
 
-    fig, (axd, axt) = plt.subplots(1, 2, figsize=(10.5, 5.2), gridspec_kw={"width_ratios": [1.25, 1]})
-    fig.patch.set_facecolor("white")
-
-    # ---- diagram ----
-    axd.plot([p[0] for p in pts], [p[1] for p in pts], color=INK, lw=2.2)
-    axd.plot([-table_r, table_r], [yt, yt], color=INK, lw=2.2)        # table
-    axd.plot([0, 0], [yt, yc], color=INK, lw=0.7, ls=(0, (4, 4)))     # center axis
-    axd.plot([-R, R], [yg0, yg0], color=INK, lw=0.7)                  # girdle top
-    axd.plot([-R, R], [yg1, yg1], color=INK, lw=0.7)                  # girdle bottom
+    ax.plot([p[0] for p in pts], [p[1] for p in pts], color=INK, lw=2.2)
+    ax.plot([-table_r, table_r], [yt, yt], color=INK, lw=2.2)         # table
+    ax.plot([0, 0], [yt, yc], color=INK, lw=0.7, ls=(0, (4, 4)))      # center axis
+    ax.plot([-R, R], [yg0, yg0], color=INK, lw=0.7)                   # girdle top
+    ax.plot([-R, R], [yg1, yg1], color=INK, lw=0.7)                   # girdle bottom
     if not is_step:                                                  # brilliant facet hint lines
         for sgn in (-1, 1):
-            axd.plot([sgn * table_r, sgn * (table_r + (R - table_r) * 0.5)],
-                     [yt, yt * 0.5], color=INK, lw=0.6)               # star facet
-            axd.plot([sgn * R, sgn * R * 0.42], [yg1, yc * 0.55], color=INK, lw=0.6)  # lower-girdle
+            ax.plot([sgn * table_r, sgn * (table_r + (R - table_r) * 0.5)],
+                    [yt, yt * 0.5], color=INK, lw=0.6)                # star facet
+            ax.plot([sgn * R, sgn * R * 0.42], [yg1, yc * 0.55], color=INK, lw=0.6)  # lower-girdle
 
     def dim_h(x0, x1, y, label):
-        axd.annotate("", (x0, y), (x1, y), arrowprops=dict(arrowstyle="<->", color=INK, lw=1))
-        axd.text((x0 + x1) / 2, y + 0.05, label, ha="center", va="bottom", color=INK, fontsize=10)
+        ax.annotate("", (x0, y), (x1, y), arrowprops=dict(arrowstyle="<->", color=INK, lw=1))
+        ax.text((x0 + x1) / 2, y + 0.05, label, ha="center", va="bottom", color=INK, fontsize=9)
 
     def dim_v(x, y0, y1, label):
-        axd.annotate("", (x, y0), (x, y1), arrowprops=dict(arrowstyle="<->", color=INK, lw=1))
-        axd.text(x + 0.06, (y0 + y1) / 2, label, ha="left", va="center", color=INK, fontsize=10, rotation=90)
+        ax.annotate("", (x, y0), (x, y1), arrowprops=dict(arrowstyle="<->", color=INK, lw=1))
+        ax.text(x + 0.06, (y0 + y1) / 2, label, ha="left", va="center", color=INK, fontsize=9, rotation=90)
 
     dim_h(-table_r, table_r, yt + 0.16, f"Table {prop['table_pct']:.0f}%")
-    dim_v(R + 0.30, yt, yc, f"Depth {prop['depth_pct']:.1f}%")
-    axd.add_patch(Arc((R, yg0), 0.7, 0.7, angle=0, theta1=180 - crown_deg, theta2=180, color=INK, lw=1.2))
-    axd.text(R - 0.55, yg0 + 0.12, f"{crown_deg:.1f}°", color=INK, fontsize=9)
-    axd.add_patch(Arc((R, yg0), 0.7, 0.7, angle=0, theta1=180, theta2=180 + pav_deg, color=INK, lw=1.2))
-    axd.text(R - 0.62, yg0 - 0.22, f"{pav_deg:.1f}°", color=INK, fontsize=9)
-    axd.text(0, yc - 0.12, "Keel" if is_step else "Culet: None", ha="center", va="top", color=INK, fontsize=9)
-    axd.set_xlim(-R - 0.8, R + 1.1); axd.set_ylim(yc - 0.5, yt + 0.5)
-    axd.set_aspect("equal"); axd.axis("off")
+    dim_v(R + 0.32, yt, yc, f"Depth {prop['depth_pct']:.1f}%")
+    ax.add_patch(Arc((R, yg0), 0.7, 0.7, angle=0, theta1=180 - crown_deg, theta2=180, color=INK, lw=1.2))
+    ax.text(R - 0.58, yg0 + 0.10, f"crown {crown_deg:.0f}°", color=INK, fontsize=8, ha="right")
+    ax.add_patch(Arc((R, yg1), 0.7, 0.7, angle=0, theta1=180, theta2=180 + pav_deg, color=INK, lw=1.2))
+    ax.text(R - 0.58, yg1 - 0.18, f"pav {pav_deg:.0f}°", color=INK, fontsize=8, ha="right")
+    ax.annotate("", (-R - 0.14, yg0), (-R - 0.14, yg1), arrowprops=dict(arrowstyle="<->", color=INK, lw=0.8))
+    ax.text(-R - 0.20, (yg0 + yg1) / 2, "girdle", rotation=90, ha="right", va="center", color=INK, fontsize=7)
+    ax.text(0, yc - 0.12, "Keel" if is_step else "Culet: None", ha="center", va="top", color=INK, fontsize=8)
+    ax.set_xlim(-R - 0.95, R + 1.15); ax.set_ylim(yc - 0.5, yt + 0.5)
+    ax.set_aspect("equal"); ax.axis("off")
+    return crown_deg, pav_deg
+
+
+def main():
+    sid = sys.argv[1] if len(sys.argv) > 1 else sys.exit("usage: gia_diagram.py <stone_id>")
+    prop = predict(sid)
+    cert = pd.read_csv(CSV, dtype={"stone_id": str}).set_index("stone_id").loc[sid]
+
+    fig, (axd, axt) = plt.subplots(1, 2, figsize=(10.5, 5.2), gridspec_kw={"width_ratios": [1.25, 1]})
+    fig.patch.set_facecolor("white")
+    crown_deg, pav_deg = draw_proportions(axd, prop, str(cert.get("shape_group")))
     axd.set_title("PROPORTIONS", color=INK, fontsize=12, fontweight="bold", loc="left")
 
     # ---- data block (predicted vs cert) ----

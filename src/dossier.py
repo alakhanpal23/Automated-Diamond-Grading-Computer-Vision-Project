@@ -29,13 +29,13 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import Arc
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from geometry_silhouette import segment
 from reconstruct_3d import (parametric_outline, real_outline, brilliant_mesh,
                             step_mesh, princess_mesh, STEP_SHAPES)
-from clarity_plot import detect_inclusions, facet_lines
+from clarity_plot import detect_inclusions, facet_lines, plot_marks
+from gia_diagram import draw_proportions
 
 MODELS = Path("data/models")
 FRAMES = Path("data/processed/frames")
@@ -175,10 +175,16 @@ def main():
         V = float(cert["weight_ct"]) * 56.818; cc = float(Cf.get(shape, Cf.median()))
         W = (V / (cc * lw * prop["depth_pct"] / 100)) ** (1 / 3); dims = (lw * W, W, prop["depth_pct"] / 100 * W)
 
-    # 3D mesh
+    # 3D mesh. Outline ASPECT comes from the real stone (cert dims if present, else the
+    # measured silhouette ratio) — not the geometry model's L/W, which can be weak; the
+    # diagram should depict the actual stone. The model's ratio is still scored in the table.
     Rx = (float(cert.get("mes_length")) / 2 if not pd.isna(cert.get("mes_length")) else 3.0) or 3.0
-    Ry = Rx / max(prop.get("ratio", 1.0), 0.5)
-    par = parametric_outline(shape, prop.get("ratio", 1.0))
+    if not pd.isna(cert.get("mes_length")) and not pd.isna(cert.get("mes_width")) and float(cert.get("mes_width")) > 0:
+        draw_ratio = float(cert.get("mes_length")) / float(cert.get("mes_width"))
+    else:
+        draw_ratio = max(lw, 1.0)
+    Ry = Rx / max(draw_ratio, 0.5)
+    par = parametric_outline(shape, draw_ratio)
     outline = par if par is not None else real_outline(frames)
     outline = outline * [Rx / max(np.abs(outline[:, 0]).max(), 1e-6), Ry / max(np.abs(outline[:, 1]).max(), 1e-6)]
     tf_ = prop["table_pct"] / 100.0
@@ -202,29 +208,16 @@ def main():
 
     a = fig.add_subplot(gs[0, 0]); a.imshow(cv2.cvtColor(cv2.imread(str(fu)), cv2.COLOR_BGR2RGB)); a.set_title("360° video", color=INK, fontsize=11); a.axis("off")
     a3 = fig.add_subplot(gs[0, 1], projection="3d")
-    a3.add_collection3d(Poly3DCollection(faces, facecolor=(0.62, 0.80, 0.95, 0.55), edgecolor=(0.1, 0.2, 0.35, 0.85), lw=0.5))
-    sp = np.abs(outline).max() * 1.1; a3.set_xlim(-sp, sp); a3.set_ylim(-sp, sp); a3.set_zlim(-(crown_h + pav_d) * 0.72, (crown_h + pav_d) * 0.42)
-    a3.set_box_aspect((1, 1, 0.9)); a3.view_init(24, 35); a3.axis("off"); a3.set_title(f"3D reconstruction ({style})", color=INK, fontsize=11)
+    a3.add_collection3d(Poly3DCollection(faces, facecolor=(0.66, 0.84, 0.98, 0.42), edgecolor=(0.10, 0.22, 0.38, 0.9), lw=0.55))
+    sp = np.abs(outline).max() * 1.08; a3.set_xlim(-sp, sp); a3.set_ylim(-sp, sp); a3.set_zlim(-(crown_h + pav_d) * 0.72, (crown_h + pav_d) * 0.42)
+    elev, azim = (28, 35) if style == "step" else (20, -50)
+    a3.set_box_aspect((1, 1, 0.92)); a3.view_init(elev, azim); a3.axis("off"); a3.set_title(f"3D reconstruction ({style})", color=INK, fontsize=11)
 
-    # GIA proportions diagram
-    ag = fig.add_subplot(gs[0, 2]); R = 1.0
-    tr = prop["table_pct"] / 100 * R
-    cdg = prop["crown_angle"] if prop["crown_angle"] > 5 else math.degrees(math.atan2((prop["depth_pct"]/100*2*R)*0.30, R-tr))
-    ch = (R-tr)*math.tan(math.radians(cdg)); gtt = prop["depth_pct"]/100*2*R*0.03
-    ph = max(prop["depth_pct"]/100*2*R - ch - gtt, prop["depth_pct"]/100*2*R*0.4)
-    yt, yg0, yg1, yc = ch, 0.0, -gtt, -(gtt+ph); isstep = shape in STEP_SHAPES; kw = 0.22*R if isstep else 0
-    if isstep:
-        mxx, mh = tr+0.5*(R-tr), yt*0.5; pxx, pm = kw/2+0.5*(R-kw/2), yg1-ph*0.5
-        rt = [(tr,yt),(mxx,yt),(mxx,mh),(R,mh),(R,yg0),(R,yg1),(pxx,yg1),(pxx,pm),(kw/2,pm),(kw/2,yc)]
-    else:
-        rt = [(tr,yt),(R,yg0),(R,yg1),(0,yc)]
-    pp = rt+[(-x,y) for x,y in reversed(rt)]+[rt[0]]
-    ag.plot([p[0] for p in pp],[p[1] for p in pp],color=INK,lw=2); ag.plot([-tr,tr],[yt,yt],color=INK,lw=2)
-    ag.plot([-R,R],[yg0,yg0],color=INK,lw=0.6); ag.plot([-R,R],[yg1,yg1],color=INK,lw=0.6)
-    ag.annotate("",(-tr,yt+0.14),(tr,yt+0.14),arrowprops=dict(arrowstyle="<->",color=INK,lw=1)); ag.text(0,yt+0.2,f"Table {prop['table_pct']:.0f}%",ha="center",color=INK,fontsize=9)
-    ag.annotate("",(R+0.28,yt),(R+0.28,yc),arrowprops=dict(arrowstyle="<->",color=INK,lw=1)); ag.text(R+0.34,(yt+yc)/2,f"Depth {prop['depth_pct']:.1f}%",rotation=90,va="center",color=INK,fontsize=9)
-    ag.add_patch(Arc((R,yg0),0.55,0.55,theta1=180-cdg,theta2=180,color=INK,lw=1)); ag.text(R-0.5,yg0+0.08,f"{cdg:.0f}°",fontsize=8,color=INK)
-    ag.set_xlim(-R-0.7,R+1.05); ag.set_ylim(yc-0.4,yt+0.45); ag.set_aspect("equal"); ag.axis("off"); ag.set_title("GIA-style proportions",color=INK,fontsize=11)
+    # GIA proportions diagram (shared with gia_diagram.py — crown+pavilion angles,
+    # girdle, facet hints, culet/keel)
+    ag = fig.add_subplot(gs[0, 2])
+    draw_proportions(ag, prop, shape)
+    ag.set_title("GIA-style proportions", color=INK, fontsize=11)
 
     # inclusion heatmap
     ah = fig.add_subplot(gs[1, 0])
@@ -233,14 +226,13 @@ def main():
 
     # clarity plot: GIA-style face-up diamond + facet lines + inclusions at detected positions
     ac = fig.add_subplot(gs[1, 1])
-    ol = parametric_outline(shape, prop.get("ratio", 1.0))
+    ol = parametric_outline(shape, draw_ratio)
     if ol is None:
         ol = real_outline(frames)
     blobs, _ = detect_inclusions(fu)
     ac.plot(np.r_[ol[:, 0], ol[0, 0]], np.r_[ol[:, 1], ol[0, 1]], color=INK, lw=1.8)
     facet_lines(ac, ol, shape)
-    for nx, ny, area_ in blobs:
-        ac.plot(nx, ny, marker="o", color="#d11", ms=3 + min(7, area_ ** 0.5 / 3), alpha=0.85)
+    plot_marks(ac, ol, blobs)
     ac.set_xlim(-1.25, 1.25); ac.set_ylim(-1.25, 1.25); ac.set_aspect("equal"); ac.axis("off")
     ac.set_title(f"clarity plot — {len(blobs)} inclusions marked", color=INK, fontsize=11)
 
@@ -264,15 +256,17 @@ def main():
         rows.append(("Dimensions (mm)", f"{dims[0]:.2f}x{dims[1]:.2f}x{dims[2]:.2f}", f"{cdd[0]}x{cdd[1]}x{cdd[2]}", ""))
     rows.append(("Carat", "weighed", (f"{cert.get('weight_ct')}" if not pd.isna(cert.get('weight_ct')) else "-"), ""))
     rows.append(("Inclusions", ", ".join(incl_pred)[:34] or "-", str(cert.get("inclusion_types") or "-")[:30], ""))
-    # two columns of rows for compactness
-    half = (len(rows) + 1) // 2
-    for col, chunk in enumerate((rows[:half], rows[half:])):
-        x0 = 0.0 + col * 0.5; y = 0.96
+    # two columns of rows for compactness — each column carries its own header
+    header = ("", "predicted", "GIA cert", "")
+    body = rows[1:]
+    half = (len(body) + 1) // 2
+    for col, chunk in enumerate(([header] + body[:half], [header] + body[half:])):
+        x0 = 0.02 + col * 0.50; y = 0.96
         for lab, b, c, mk in chunk:
-            bold = (b == "predicted")
-            at.text(x0, y, lab, fontsize=10, fontweight="bold" if bold else "normal", color=INK)
-            at.text(x0 + 0.18, y, b, fontsize=9.5, color="#1f7a3f")
-            at.text(x0 + 0.33, y, c, fontsize=9.5, color="#b06a00")
+            hdr = (b == "predicted")
+            at.text(x0, y, lab, fontsize=10, fontweight="bold" if hdr else "normal", color=INK)
+            at.text(x0 + 0.20, y, b, fontsize=9.5, fontweight="bold" if hdr else "normal", color="#1f7a3f")
+            at.text(x0 + 0.34, y, c, fontsize=9.5, fontweight="bold" if hdr else "normal", color="#b06a00")
             at.text(x0 + 0.45, y, mk, fontsize=9.5, fontweight="bold", color=("#1f7a3f" if mk == "OK" else "#b03030"))
             y -= 0.145
     at.set_title("Predicted grade  vs  GIA cert", color=INK, fontsize=11, loc="left")

@@ -82,6 +82,12 @@ def parametric_outline(shape, ratio):
     """Clean, crisp-cornered outline for shapes the silhouette rounds off.
     Returns None for smooth shapes (use the real silhouette instead)."""
     wx, wy = 1.0, 1.0 / max(ratio, 0.5)
+    if shape == "round":                                             # perfect circle
+        a = np.linspace(0, 2 * np.pi, 48, endpoint=False)
+        return np.c_[np.cos(a), np.sin(a)]
+    if shape == "oval":                                              # clean ellipse from L/W
+        a = np.linspace(0, 2 * np.pi, 48, endpoint=False)
+        return np.c_[np.cos(a) * wx, np.sin(a) * wy]
     if shape in {"emerald", "radiant"}:                              # cut-corner rectangle (sharp)
         c = 0.10
         cor = [(wx, wy - c * wy), (wx - c * wx, wy), (-(wx - c * wx), wy), (-wx, wy - c * wy),
