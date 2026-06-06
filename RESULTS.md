@@ -13,14 +13,23 @@ Held-out numbers are prior-corrected (log of real class frequency added at
 inference). The "rescued" column uses **random** balanced sampling instead of
 first-N-alphabetical.
 
-| Attribute | Held-out (random, prior-corrected) | Majority baseline | Verdict |
+Held-out = stones in **no** training list. NOTE: after many improvement
+experiments the clean held-out shrank to **346 stones**, so these are leak-free
+but noisier (±a few %). Lesson learned: lock a fixed test set aside up front.
+
+| Attribute | Clean held-out (prior-corrected) | Majority baseline | Verdict |
 |---|:---:|:---:|---|
-| Shape (10-cls) | **99.0%** | ~21% | ✅ deployable |
-| Eye-clean (2-cls) | **91.7%** | 72% | ✅ deployable |
-| Color (3-cls) | **87.2%** | ~40% | ✅ strong (was 63.6% on 750 stones → 87.2% on 2,500) |
-| Clarity (VVS/VS/SI) | **66.8%** | 37% | ✅ usable (3-class); ordinal 5-class within-1 100% |
-| Inclusions (multi-label) | P=0.49 R=0.62 (calibrated precision 0.51) | — | 🟡 useful screen |
-| Fluorescence (4-cls) | 61.7%* | 58% | ❌ *=majority baseline; no real signal (needs UV)* |
+| Shape (10-cls) | **98.6%** | ~21% | ✅ deployable |
+| Color (3-cls) | **90.8%** | ~40% | ✅ strong (was 63.6% on 750 stones → ~90% on 2,500) |
+| Eye-clean (2-cls) | **88.7%** | 72% | ✅ deployable |
+| Clarity (VVS/VS/SI) | **74.0%** | 37% | ✅ usable; ordinal 5-class within-1 ~100% |
+| Inclusions (multi-label) | P=0.45 R=0.85 | — | 🟡 screen; recall up from 0.62 with more data |
+| Fluorescence (4-cls) | 66.2%* | 58% | ❌ *=majority baseline; no real signal (needs UV)* |
+
+**Integrity note:** an earlier improvement-round eval showed clarity 83.7% / color
+87.7% — but those were **inflated by leakage** (the held-out list wasn't rebuilt
+after new training sets were created; 3,132 clarity / 1,059 color held-out stones
+had leaked into training). The table above is the corrected, leak-free measurement.
 
 ### Improvement round (used more real data + better methods, no fabrication)
 - **Color 63.6% → 87.2%** (held-out): retrained on 2,500 stones vs 750 — the original small sample didn't generalize. More real data was a *major* lever here.

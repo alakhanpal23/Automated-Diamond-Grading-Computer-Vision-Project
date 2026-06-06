@@ -32,6 +32,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=600)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--tta", action="store_true", help="test-time augmentation (avg over h-flip)")
     args = ap.parse_args()
 
     import numpy as np
@@ -79,7 +80,7 @@ def main() -> None:
         meta = json.loads((idir / "classes.json").read_text())
         m = models.resnet18(weights=None); m.fc = nn.Linear(m.fc.in_features, len(meta["types"]))
         m.load_state_dict(torch.load(idir / "best.pt", map_location=device)); m.to(device).eval()
-        inc = (m, meta["types"], meta.get("threshold", 0.5), meta["img_size"])
+        inc = (m, meta["types"], meta.get("threshold", 0.5), meta.get("img_size", 512))
 
     correct = Counter(); total = Counter(); correct_raw = Counter()
     inc_tp = inc_fp = inc_fn = 0
@@ -94,7 +95,11 @@ def main() -> None:
             batches = {s: torch.stack([tf(s)(im) for im in pil]).to(device) for s in sizes}
             row = cert.loc[sid]
             for head, (m, classes, size, log_prior) in heads.items():
-                logits = m(batches[size]).mean(0)            # aggregate views
+                xb = batches[size]
+                out = m(xb)
+                if args.tta:                                  # average over horizontal flip
+                    out = (out + m(torch.flip(xb, dims=[3]))) / 2
+                logits = out.mean(0)                          # aggregate views
                 cv = row.get(head)
                 if pd.isna(cv):
                     continue

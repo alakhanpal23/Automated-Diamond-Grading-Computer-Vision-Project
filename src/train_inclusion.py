@@ -200,7 +200,8 @@ def main() -> None:
         return
 
     (args.out_dir / "classes.json").write_text(
-        json.dumps({"types": types, "threshold": args.threshold}, indent=2), encoding="utf-8")
+        json.dumps({"types": types, "threshold": args.threshold, "img_size": args.img_size},
+                   indent=2), encoding="utf-8")
 
     history, best_f1 = [], -1.0
     for epoch in range(1, args.epochs + 1):
