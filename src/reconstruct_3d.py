@@ -68,6 +68,55 @@ def real_outline(frames, n=28):
     return out
 
 
+def _edges(corners, per=5):
+    """Densify a polygon's edges, keeping the corners sharp."""
+    pts = []
+    for i in range(len(corners)):
+        a, b = np.array(corners[i]), np.array(corners[(i + 1) % len(corners)])
+        for t in np.linspace(0, 1, per, endpoint=False):
+            pts.append(a + (b - a) * t)
+    return np.array(pts)
+
+
+def parametric_outline(shape, ratio):
+    """Clean, crisp-cornered outline for shapes the silhouette rounds off.
+    Returns None for smooth shapes (use the real silhouette instead)."""
+    wx, wy = 1.0, 1.0 / max(ratio, 0.5)
+    if shape in {"emerald", "radiant"}:                              # cut-corner rectangle (sharp)
+        c = 0.10
+        cor = [(wx, wy - c * wy), (wx - c * wx, wy), (-(wx - c * wx), wy), (-wx, wy - c * wy),
+               (-wx, -(wy - c * wy)), (-(wx - c * wx), -wy), (wx - c * wx, -wy), (wx, -(wy - c * wy))]
+        return _edges(cor, 7)
+    if shape == "asscher":                                           # cut-corner square
+        c = 0.18
+        cor = [(1, 1 - c), (1 - c, 1), (-(1 - c), 1), (-1, 1 - c),
+               (-1, -(1 - c)), (-(1 - c), -1), (1 - c, -1), (1, -(1 - c))]
+        return _edges(cor, 7)
+    if shape == "princess":                                          # sharp square
+        return _edges([(wx, wy), (-wx, wy), (-wx, -wy), (wx, -wy)], 7)
+    if shape == "cushion":                                           # superellipse (rounded square)
+        a = np.linspace(0, 2 * np.pi, 28, endpoint=False)
+        p = 0.42
+        return np.c_[np.sign(np.cos(a)) * np.abs(np.cos(a)) ** p * wx,
+                     np.sign(np.sin(a)) * np.abs(np.sin(a)) ** p * wy]
+    return None
+
+
+def chevron_pavilion(outline, pav_d):
+    """Princess pavilion: inverted pyramid from the square girdle to the culet
+    (the corner-to-culet edges form the chevron / X)."""
+    n = len(outline)
+    girdle = ring(outline, 1.0, 0.0)
+    mid = ring(outline, 0.5, -pav_d * 0.5)
+    culet = [0.0, 0.0, -pav_d]
+    faces = []
+    for i in range(n):
+        j = (i + 1) % n
+        faces.append([girdle[i], girdle[j], mid[j], mid[i]])
+        faces.append([mid[i], mid[j], culet])
+    return faces, girdle
+
+
 def ring(outline, scale, z):
     return [[p[0] * scale, p[1] * scale, z] for p in outline]
 
@@ -105,6 +154,21 @@ def step_mesh(outline, table_f, crown_h, pav_d):
     return faces
 
 
+def princess_mesh(outline, table_f, crown_h, pav_d, star_f):
+    """Square outline, brilliant-style crown, chevron (inverted-pyramid) pavilion."""
+    n = len(outline)
+    girdle = ring(outline, 1.0, 0.0)
+    table = ring(outline, table_f, crown_h)
+    star = ring(outline, table_f + (1 - table_f) * (1 - star_f), crown_h * (1 - star_f))
+    faces = [table]
+    for i in range(n):
+        j = (i + 1) % n
+        faces.append([table[i], star[i], star[j], table[j]])
+        faces.append([star[i], girdle[i], girdle[j], star[j]])
+    pav, _ = chevron_pavilion(outline, pav_d)
+    return faces + pav
+
+
 def render(faces, span, depth, view, path):
     fig = plt.figure(figsize=(4, 4), facecolor="white")
     ax = fig.add_subplot(111, projection="3d")
@@ -140,7 +204,9 @@ def main():
     cert = pd.read_csv(CSV, dtype={"stone_id": str}).set_index("stone_id").loc[sid]
     shape = str(cert.get("shape_group"))
     Rx = float(cert.get("mes_length", 6)) / 2 or 3.0
-    outline = real_outline(frames)
+    # crisp parametric outline for cornered shapes; real silhouette for smooth ones
+    par = parametric_outline(shape, float(cert.get("ratio", 1.0)) if not pd.isna(cert.get("ratio")) else 1.0)
+    outline = par if par is not None else real_outline(frames)
     # scale outline to mm so x:y matches the real L/W
     sx = Rx / max(np.abs(outline[:, 0]).max(), 1e-6)
     sy = (Rx / max(prop.get("ratio", 1.0), 0.5)) / max(np.abs(outline[:, 1]).max(), 1e-6)
@@ -163,6 +229,9 @@ def main():
     if shape in STEP_SHAPES:
         faces = step_mesh(outline, table_f, crown_h or 0.3 * Rx, pav_d)
         style = "step cut"
+    elif shape == "princess":
+        faces = princess_mesh(outline, table_f, crown_h or 0.3 * Rx, pav_d, star_f)
+        style = "princess"
     else:
         faces = brilliant_mesh(outline, table_f, crown_h, pav_d, star_f, lower_f)
         style = "brilliant"
