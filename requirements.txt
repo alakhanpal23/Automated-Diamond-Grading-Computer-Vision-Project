@@ -12,3 +12,7 @@ requests==2.34.2
 openpyxl==3.1.5
 pymupdf==1.27.2.3
 pyarrow==24.0.0
+# Platform bridge (src/packetizer.py): boto3 for S3/MinIO uploads, jsonschema
+# for optional --schema validation against the platform's metadata.schema.json.
+boto3==1.43.24
+jsonschema==4.26.0

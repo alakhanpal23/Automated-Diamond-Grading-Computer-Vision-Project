@@ -63,6 +63,38 @@ python src/03_extract_frames.py --frames-per-video 12 --size 512 --quality 95 --
 python src/digital_cert.py <stone_id>
 ```
 
+## Platform bridge (Phase 1 packetizer)
+`src/packetizer.py` turns stones into **capture packets** for the Kara Data
+Platform and uploads them to S3 under the prefix layout its ingest expects:
+`s3://<bucket>/raw/parcels/{parcel_id}/{run_id}/{stone_id}/` — frame JPEGs +
+one `metadata.json`. Two-command flow:
+```bash
+# 1. Dry run — write packets to local disk exactly as they'd land in S3, so you
+#    can diff metadata.json against the platform's reference packet before AWS.
+python src/packetizer.py --sample 3 --seed 42 --out-dir /tmp/packets --darkfield-tail 4
+
+# 2a. Upload to a local MinIO (platform docker-compose) — test before real S3:
+AWS_ACCESS_KEY_ID=minioadmin AWS_SECRET_ACCESS_KEY=minioadmin \
+python src/packetizer.py --sample 3 --seed 42 --darkfield-tail 4 \
+    --bucket kara-captures --endpoint-url http://localhost:9000
+
+# 2b. Upload to real S3 (drop --endpoint-url; use a profile or the default chain):
+python src/packetizer.py --sample 3 --seed 42 --darkfield-tail 4 \
+    --bucket <your-bucket> --profile <aws-profile>
+```
+The upload path (boto3) is verified end-to-end against an S3-compatible server
+(moto/MinIO): frames upload in parallel, each confirmed by a 2xx, then
+metadata.json. `--schema <metadata.schema.json>` validates each packet first.
+**Commit-marker rule (hard requirement):** `metadata.json` is the platform's
+commit marker — its ingest Lambda triggers on `metadata.json` and resolves every
+`media[].s3_key` immediately. The packetizer therefore uploads **all frames
+first, confirms each, and writes `metadata.json` last**; if any frame fails after
+retries, no `metadata.json` is written for that stone (it's logged failed and the
+run continues). Re-runs are idempotent (skip if `metadata.json` already exists,
+unless `--force`). Self-test the metadata builder with `python src/packetizer.py
+--check`; validate against the platform schema with `--schema <metadata.schema.json>`.
+Full setup (local MinIO test + AWS account/bucket/IAM) is in **`PLATFORM_BRIDGE.md`**.
+
 ## Key lessons (the honest ones)
 - **Random (not first-N) sampling** for balanced subsets — alphabetical sampling leaked vendor/batch cues and inflated numbers.
 - **Prior correction** at inference — balanced training gives a flat prior; add log(real class frequency).
