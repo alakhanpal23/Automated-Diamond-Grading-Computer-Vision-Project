@@ -92,7 +92,10 @@ def main():
         sys.exit(f"no frames for {src}")
     pil = [Image.open(f).convert("RGB") for f in frames]
     df = pd.read_csv(CSV, dtype={"stone_id": str})
-    cert = df.set_index("stone_id").loc[sid] if sid in set(df["stone_id"]) else pd.Series(dtype=object)
+    # resolve the cert id from a raw filename (e.g. "zsmkj339_b2b" -> "ZSMKJ339")
+    ids = set(df["stone_id"])
+    cid = next((c for c in (sid, sid.upper(), sid.split("_")[0].upper(), sid.split("-")[0].upper()) if c in ids), sid)
+    cert = df.set_index("stone_id").loc[cid] if cid in ids else pd.Series(dtype=object)
     mean, std = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
 
     # face-up frame (largest silhouette)

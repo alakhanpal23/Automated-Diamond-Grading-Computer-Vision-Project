@@ -26,12 +26,25 @@ OUT = Path("data/models/geometry_resnet18")
 TARGETS = ["depth_pct", "table_pct", "crown_angle", "pavilion_depth", "ratio"]
 
 
+# crown_angle & pavilion_depth are reported (>1) ONLY for round brilliants; they
+# are stored as 0 for every fancy shape (~83% of stones). Training the shared
+# backbone to output that constant 0 is pure noise that competes with depth/table,
+# so we MASK those two targets wherever they're 0 and supervise them on rounds only.
+MASKED = {"crown_angle", "pavilion_depth"}
+
+
 class GeomDS:
     def __init__(self, df, tf, mean, std):
         self.paths = df["frame_path"].tolist()
         self.tf = tf
         import numpy as np
-        self.Y = ((df[TARGETS].values - mean) / std).astype("float32")
+        raw = df[TARGETS].values.astype("float32")
+        self.Y = ((raw - mean) / std).astype("float32")
+        M = np.ones_like(raw, dtype="float32")
+        for j, t in enumerate(TARGETS):
+            if t in MASKED:
+                M[:, j] = (raw[:, j] > 1.0).astype("float32")
+        self.M = M
 
     def __len__(self):
         return len(self.paths)
@@ -39,7 +52,8 @@ class GeomDS:
     def __getitem__(self, i):
         import torch
         from PIL import Image
-        return self.tf(Image.open(self.paths[i]).convert("RGB")), torch.from_numpy(self.Y[i])
+        return (self.tf(Image.open(self.paths[i]).convert("RGB")),
+                torch.from_numpy(self.Y[i]), torch.from_numpy(self.M[i]))
 
 
 def parse_args():
@@ -96,7 +110,7 @@ def main():
     model = model.to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
-    crit = nn.SmoothL1Loss()
+    crit = nn.SmoothL1Loss(reduction="none")
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "norm.json").write_text(json.dumps(
         {"targets": TARGETS, "mean": mean.tolist(), "std": std.tolist(), "img_size": args.img_size}, indent=2))
@@ -105,7 +119,7 @@ def main():
         model.eval()
         preds = []
         with torch.no_grad():
-            for x, _ in ldr:
+            for x, _, _ in ldr:
                 preds.append(model(x.to(device)).cpu().numpy())
         preds = np.concatenate(preds) * std + mean
         d = df.copy()
@@ -114,21 +128,29 @@ def main():
         # per-stone: average frame predictions
         agg = d.groupby("stone_id").agg({**{f"_p_{k}": "mean" for k in range(len(TARGETS))},
                                          **{t: "first" for t in TARGETS}})
-        mae = {t: float(np.abs(agg[f"_p_{k}"] - agg[t]).mean()) for k, t in enumerate(TARGETS)}
+        # depth/table/ratio over all stones; crown/pavilion only where reported (rounds)
+        mae = {}
+        for k, t in enumerate(TARGETS):
+            err = np.abs(agg[f"_p_{k}"] - agg[t])
+            sel = agg[t] > 1 if t in MASKED else slice(None)
+            mae[t] = float(err[sel].mean()) if (t not in MASKED or (agg[t] > 1).any()) else 0.0
         print(f"  [{name}] per-stone MAE: " + "  ".join(f"{t}={mae[t]:.2f}" for t in TARGETS))
         return mae, agg
 
     best = 1e9
     for ep in range(1, args.epochs + 1):
         model.train(); t0 = time.time(); ls = 0; n = 0
-        for x, y in tl:
-            x, y = x.to(device), y.to(device)
-            opt.zero_grad(); loss = crit(model(x), y); loss.backward(); opt.step()
+        for x, y, m in tl:
+            x, y, m = x.to(device), y.to(device), m.to(device)
+            opt.zero_grad()
+            loss = (crit(model(x), y) * m).sum() / m.sum().clamp(min=1)
+            loss.backward(); opt.step()
             ls += loss.item() * x.size(0); n += x.size(0)
         sched.step()
         print(f"EPOCH {ep}/{args.epochs} loss={ls/n:.4f} ({time.time()-t0:.0f}s)")
         mae, _ = evaluate(va, vl, "val")
-        score = sum(mae.values())
+        # select on the universal targets we care about (depth/table/ratio), not the round-only ones
+        score = mae["depth_pct"] + mae["table_pct"] + 10 * mae["ratio"]
         torch.save(model.state_dict(), OUT / "last.pt")
         if score < best:
             best = score; torch.save(model.state_dict(), OUT / "best.pt"); print("  saved best")
