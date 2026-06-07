@@ -1,6 +1,6 @@
 config/.env
 data/raw/
-data/processed/
+data/processed/*
 data/models/
 *.pt
 *.mp4
@@ -9,3 +9,10 @@ __pycache__/
 *.pyc
 .venv/
 .claude/
+# investor showcase panels are versioned (exceptions to data/processed/* and *.jpg)
+!data/processed/demo/
+data/processed/demo/*
+!data/processed/demo/investor_scorecard.jpg
+!data/processed/demo/investor_blindtest.jpg
+!data/processed/demo/sci_dashboard.jpg
+!data/processed/demo/3D_SHOWCASE.jpg
