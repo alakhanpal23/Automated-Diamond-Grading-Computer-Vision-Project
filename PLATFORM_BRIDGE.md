@@ -167,9 +167,15 @@ packet against the platform's schema before it's sent.
 
 ## Appendix — if WE ever own the bucket (not the current plan)
 
-Current decision: the **platform owns the bucket** (Step 2). Keep this only as a
-fallback if that changes. You'd create the bucket and grant the platform's ingest
-Lambda cross-account access + the `metadata.json` notification.
+If you run BOTH sides yourself (you are the platform team), you create the bucket
+here. The bootstrap script does the bucket + hardening (+ optional scoped IAM user)
+in one idempotent shot once `aws configure` has working creds:
+
+```bash
+bash scripts/aws_bootstrap.sh <bucket-name> <region> <profile> [--with-iam]
+```
+
+Manual equivalent of what that script runs:
 
 ```bash
 # Region us-east-1 (other regions need --create-bucket-configuration LocationConstraint=...)
