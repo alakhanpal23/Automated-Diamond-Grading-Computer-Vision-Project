@@ -63,6 +63,29 @@ python src/03_extract_frames.py --frames-per-video 12 --size 512 --quality 95 --
 python src/digital_cert.py <stone_id>
 ```
 
+## Platform bridge (Phase 1 packetizer)
+`src/packetizer.py` turns stones into **capture packets** for the Kara Data
+Platform and uploads them to S3 under the prefix layout its ingest expects:
+`s3://<bucket>/raw/parcels/{parcel_id}/{run_id}/{stone_id}/` — frame JPEGs +
+one `metadata.json`. Two-command flow:
+```bash
+# 1. Dry run — write packets to local disk exactly as they'd land in S3, so you
+#    can diff metadata.json against the platform's reference packet before AWS.
+python src/packetizer.py --sample 3 --seed 42 --out-dir /tmp/packets --darkfield-tail 4
+
+# 2. Upload (test against a local MinIO first, then real S3):
+python src/packetizer.py --sample 3 --seed 42 --bucket <bucket> \
+    --endpoint-url http://localhost:9000   # omit --endpoint-url for real S3
+```
+**Commit-marker rule (hard requirement):** `metadata.json` is the platform's
+commit marker — its ingest Lambda triggers on `metadata.json` and resolves every
+`media[].s3_key` immediately. The packetizer therefore uploads **all frames
+first, confirms each, and writes `metadata.json` last**; if any frame fails after
+retries, no `metadata.json` is written for that stone (it's logged failed and the
+run continues). Re-runs are idempotent (skip if `metadata.json` already exists,
+unless `--force`). Self-test the metadata builder with `python src/packetizer.py
+--check`; validate against the platform schema with `--schema <metadata.schema.json>`.
+
 ## Key lessons (the honest ones)
 - **Random (not first-N) sampling** for balanced subsets — alphabetical sampling leaked vendor/batch cues and inflated numbers.
 - **Prior correction** at inference — balanced training gives a flat prior; add log(real class frequency).
