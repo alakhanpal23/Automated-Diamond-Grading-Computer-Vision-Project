@@ -27,21 +27,7 @@ The [full results and evaluation notes](RESULTS.md) give baselines, model varian
 
 ## How it works
 
-~~~mermaid
-flowchart LR
-    A[Certificate-labeled inventory] --> B[Stone-level train / validation / test split]
-    V[360° videos] --> F[Sampled frames]
-    B --> M[Multi-view grading models]
-    F --> M
-    F --> G[Silhouette and geometry estimates]
-    M --> D[Digital dossier]
-    G --> D
-    W[Measured carat weight] --> X[Physical dimension estimate]
-    G --> X
-    X --> D
-    A --> Q[Certificate comparison]
-    D --> Q
-~~~
+![Diamond grading system design: ingest video and certificate labels, prepare stone-level splits, predict grades, combine geometry with measured weight, and produce a dossier](docs/system-design.svg)
 
 The pipeline ingests certificate records, downloads authorized media, extracts frames, builds stone-level splits, trains task-specific heads, and produces a per-stone report with predictions, geometry, inclusion heatmaps, and certificate QC. The models use multiple views of each stone; the geometry path estimates proportions from imagery and adds measured weight only when physical dimensions are needed.
 
