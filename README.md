@@ -2,6 +2,12 @@
 
 **A computer-vision research prototype that turns rotating diamond videos into an auditable grading dossier.** It combines multi-view classifiers, proportion estimation, inclusion localization, and certificate comparison. The central question is practical: which grading signals can ordinary video recover, and which require a better capture rig?
 
+<a href="data/processed/demo/investor_blindtest.jpg">
+  <img src="data/processed/demo/investor_blindtest.jpg" alt="Example of a diamond video frame beside model predictions and certificate values, including a fluorescence miss" width="960">
+</a>
+
+*One illustrative stone, compared with its certificate after prediction. The aggregate held-out results below are the performance measure.*
+
 ## Measured performance
 
 Models were retrained after a fixed 1,500-stone holdout was set aside. The reported grading results were measured on 1,200 of those unseen, certificate-labeled stones, with no training overlap. Accuracy reflects the inventory's natural class distribution and uses prior correction at inference.
@@ -38,6 +44,12 @@ flowchart LR
 ~~~
 
 The pipeline ingests certificate records, downloads authorized media, extracts frames, builds stone-level splits, trains task-specific heads, and produces a per-stone report with predictions, geometry, inclusion heatmaps, and certificate QC. The models use multiple views of each stone; the geometry path estimates proportions from imagery and adds measured weight only when physical dimensions are needed.
+
+<a href="data/processed/demo/3D_SHOWCASE.jpg">
+  <img src="data/processed/demo/3D_SHOWCASE.jpg" alt="Six diamond video frames paired with illustrative carved hulls and parametric 3D diamond models" width="640">
+</a>
+
+*Examples across six cuts: video frames, multi-view hulls, and parametric 3D illustrations. These are visualizations, not validated exact 3D reconstructions from video.*
 
 ## Explore the repository
 
