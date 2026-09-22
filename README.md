@@ -1,97 +1,76 @@
-# aarin-stones-poc — diamond grading from video
+# Diamond grading from 360° video
 
-Computer-vision system that reads a diamond's GIA-style grade from its 360° video,
-over **10,497 real GIA-certified stones**. It predicts shape, color, clarity,
-eye-clean, fluorescence and inclusions, reconstructs the cut geometry and mm
-dimensions, and assembles a one-page "digital cert" with a QC comparison to the
-real cert. See **`OVERVIEW.md`** (advisor one-pager), **`RESULTS.md`** (full
-numbers), **`CAPTURE_RIG.md`** (the hardware path).
+**A computer-vision research prototype that turns rotating diamond videos into an auditable grading dossier.** It combines multi-view classifiers, proportion estimation, inclusion localization, and certificate comparison. The central question is practical: which grading signals can ordinary video recover, and which require a better capture rig?
 
-## Definitive results — locked test set (1,200 stones, leak-free)
-| Attribute | Result |
-|---|:---:|
-| Shape | **99.3%** |
-| Color | **87.2%** |
-| Eye-clean | **89.4%** |
-| Clarity (3-class; within-1 ~100%) | **70.3%** |
-| Geometry (depth% / table% / L-W) | **±0.5 / ±0.9 / ±0.01** |
-| mm dimensions (L×W×D) | **±0.1 mm** |
-| Inclusions | detect + localize, **P0.55 R0.84** |
-| Fluorescence | no signal — needs UV (physics) |
+## Measured performance
 
-A fixed 1,500-stone test set is held out up front; every head is retrained on the
-rest (0 overlap, verified). Carat is not predictable from video (no scale) and is
-*weighed* in the machine. Honest limits are capture limits, not algorithm limits.
+Models were retrained after a fixed 1,500-stone holdout was set aside. The reported grading results were measured on 1,200 of those unseen, certificate-labeled stones, with no training overlap. Accuracy reflects the inventory's natural class distribution and uses prior correction at inference.
 
-## Pipeline
-| Step | Script |
-|---|---|
-| 1. Ingest spreadsheet → CSV | `01_ingest_excel.py` |
-| 2. Download videos | `02_download_media.py` |
-| 3. Extract frames (512px) | `03_extract_frames.py` |
-| 4. Build train/val/test manifest | `04_build_manifest.py` |
-| 5. Cert inclusion ground truth | `05_extract_cert_inclusions.py` |
+| Task | Held-out result | Interpretation |
+| --- | ---: | --- |
+| Shape · 10 classes | **99.3% accuracy** | Strong visual signal |
+| Color · 3 classes | **87.2% accuracy** | Strong, but sensitive to capture conditions |
+| Eye-clean · 2 classes | **89.4% accuracy** | Useful screening signal |
+| Clarity · 3 classes | **70.3% accuracy** | Needs higher-resolution capture |
+| Inclusions · multi-label | **0.55 precision / 0.84 recall** | Screening and localization, not final grading |
+| Geometry · depth / table / L:W | **0.54 pp / 0.86 pp / 0.01 MAE** | Scale-free proportions |
 
-## Models & tools
-| Script | What it does |
-|---|---|
-| `train_shape_model.py` | any single-label head (shape/color/clarity/eye-clean/fluorescence); `--label-col`, `--backbone`, `--no-color-jitter` |
-| `train_inclusion.py` | multi-label inclusion model (multi-view max-agg) |
-| `calibrate_inclusions.py` | per-type decision thresholds (precision) |
-| `train_clarity_ordinal.py` | clarity as an ordered scale (within-1 metric) |
-| `train_geometry.py` | proportion regressor (depth%/table%/crown/pavilion/ratio) |
-| `geometry_silhouette.py` | deterministic L/W + outline montage |
-| `geometry_3d.py` | deterministic profile geometry (exact with a turntable; fails on free-tumble video) |
-| `mm_dimensions.py` | proportions + weighed carat → real mm dimensions |
-| `reconstruct_3d.py` | parametric 3D diamond rendered from predicted proportions |
-| `localize_inclusions.py` | Grad-CAM "where are the inclusions" heatmaps |
-| `predict_stone.py` | full grade for one stone (prior-corrected) + cert QC |
-| `digital_cert.py` | one-page visual report (grade + geometry + inclusion heatmap + QC) |
-| `evaluate_grade.py` | end-to-end held-out scorecard (prior correction, TTA, backbones) |
-| `qc_report.py` | flag mislabeled / swapped certified stones (shape, 99%) |
-| `evaluate.py` | per-frame + per-stone accuracy for a single head |
+With a **separately weighed carat value**, estimated physical dimensions had mean absolute errors of **0.091 mm depth, 0.138 mm width, and 0.279 mm length** on a separate 400-stone holdout. Video alone cannot supply absolute scale. Fluorescence reached only **45.2% accuracy**, below its **58% majority-class baseline**: a white-light video does not provide the UV signal it needs.
 
-## Quick start
-```bash
-pip install torch==2.6.0+cu124 torchvision==0.21.0+cu124 --index-url https://download.pytorch.org/whl/cu124
-pip install -r requirements.txt          # numpy, opencv, pymupdf, matplotlib, ...
-# put the media token in config/.env (see config/.env.example)
+The [full results and evaluation notes](RESULTS.md) give baselines, model variants, and the correction of an earlier data-leakage error. The figures above are the subsequent locked-test measurements.
+
+## How it works
+
+~~~mermaid
+flowchart LR
+    A[Certificate-labeled inventory] --> B[Stone-level train / validation / test split]
+    V[360° videos] --> F[Sampled frames]
+    B --> M[Multi-view grading models]
+    F --> M
+    F --> G[Silhouette and geometry estimates]
+    M --> D[Digital dossier]
+    G --> D
+    W[Measured carat weight] --> X[Physical dimension estimate]
+    G --> X
+    X --> D
+    A --> Q[Certificate comparison]
+    D --> Q
+~~~
+
+The pipeline ingests certificate records, downloads authorized media, extracts frames, builds stone-level splits, trains task-specific heads, and produces a per-stone report with predictions, geometry, inclusion heatmaps, and certificate QC. The models use multiple views of each stone; the geometry path estimates proportions from imagery and adds measured weight only when physical dimensions are needed.
+
+## Explore the repository
+
+| Start here | Purpose |
+| --- | --- |
+| [RESULTS.md](RESULTS.md) | Locked-test benchmarks, baselines, failure modes, and experimental history |
+| [OVERVIEW.md](OVERVIEW.md) | Project thesis and capture-station concept |
+| [CAPTURE_RIG.md](CAPTURE_RIG.md) | Hardware path for UV, microscopy, controlled pose, and scale |
+| [Ingest](src/01_ingest_excel.py) → [manifest](src/04_build_manifest.py) | Data ingestion, media extraction, and stone-level splits |
+| [Grading heads](src/train_shape_model.py), [inclusions](src/train_inclusion.py), [geometry](src/train_geometry.py) | Model training |
+| [Grade evaluation](src/evaluate_grade.py), [dimensions](src/mm_dimensions.py) | Evaluation and physical-dimension estimates |
+| [Digital dossier](src/digital_cert.py), [QC report](src/qc_report.py) | Per-stone dossier and certificate QC |
+
+The project also includes [a packetizer](src/packetizer.py) that packages frames and metadata for an S3-compatible ingestion pipeline. It uploads frames before the metadata commit marker, so consumers do not see incomplete stones.
+
+## Run it with your own authorized data
+
+Use Python 3.12, create a virtual environment, and install [requirements.txt](requirements.txt). PyTorch and torchvision can be installed from the appropriate [official wheel index](https://pytorch.org/get-started/locally/) for your machine.
+
+~~~bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp config/.env.example config/.env
+# Set AARIN_MEDIA_TOKEN in config/.env only if your authorized media requires it.
 python src/01_ingest_excel.py
-python src/02_download_media.py --kind videos --workers 8 --shuffle
-python src/03_extract_frames.py --frames-per-video 12 --size 512 --quality 95 --workers 4
-# grade one stone (needs trained models in data/models/):
-python src/digital_cert.py <stone_id>
-```
+python src/02_download_media.py --kind videos --dry-run
+~~~
 
-## Platform bridge (Phase 1 packetizer)
-`src/packetizer.py` turns stones into **capture packets** for the Kara Data
-Platform and uploads them to S3 under the prefix layout its ingest expects:
-`s3://<bucket>/raw/parcels/{parcel_id}/{run_id}/{stone_id}/` — frame JPEGs +
-one `metadata.json`. Two-command flow:
-```bash
-# 1. Dry run — write packets to local disk exactly as they'd land in S3, so you
-#    can diff metadata.json against the platform's reference packet before AWS.
-python src/packetizer.py --sample 3 --seed 42 --out-dir /tmp/packets --darkfield-tail 4
+The training dataset, source videos, certificates, and model checkpoints are **not included** in this public repository. The ingestion and evaluation commands require access to your own authorized data; the published benchmarks cannot be reproduced from this checkout alone. Keep tokens in the local environment file or an environment variable, never in tracked files.
 
-# 2. Upload (test against a local MinIO first, then real S3):
-python src/packetizer.py --sample 3 --seed 42 --bucket <bucket> \
-    --endpoint-url http://localhost:9000   # omit --endpoint-url for real S3
-```
-**Commit-marker rule (hard requirement):** `metadata.json` is the platform's
-commit marker — its ingest Lambda triggers on `metadata.json` and resolves every
-`media[].s3_key` immediately. The packetizer therefore uploads **all frames
-first, confirms each, and writes `metadata.json` last**; if any frame fails after
-retries, no `metadata.json` is written for that stone (it's logged failed and the
-run continues). Re-runs are idempotent (skip if `metadata.json` already exists,
-unless `--force`). Self-test the metadata builder with `python src/packetizer.py
---check`; validate against the platform schema with `--schema <metadata.schema.json>`.
+## What the experiments changed
 
-## Key lessons (the honest ones)
-- **Random (not first-N) sampling** for balanced subsets — alphabetical sampling leaked vendor/batch cues and inflated numbers.
-- **Prior correction** at inference — balanced training gives a flat prior; add log(real class frequency).
-- **Lock a fixed test set up front** — we caught our own leakage and re-measured cleanly.
-- **The ceiling is the data:** 620px video caps clarity/inclusions; fluorescence needs UV; carat needs a scale. More training won't break these — the **capture rig** will.
+An initial alphabetical sampling strategy inadvertently selected correlated vendor and capture batches. A later evaluation also had overlap with newly expanded training sets. Both inflated early results. The project switched to randomized balanced sampling, fixed the holdout before retraining, verified zero overlap, and reported the corrected scores above. This is the most important lesson in the repository: evaluation design mattered as much as model architecture.
 
-## Layout / gitignore
-`config/.env` (token), `data/raw/`, `data/processed/`, `data/models/`, `*.pt/*.mp4/*.jpg`
-are gitignored. Only code + docs are tracked. GPU: trains on CUDA automatically (`device=auto`).
+The remaining gaps point to specific hardware: UV lighting for fluorescence, microscope and darkfield views for inclusions and clarity, a measured weight for carat, and a calibrated turntable for exact profile geometry. See the [capture-rig plan](CAPTURE_RIG.md).

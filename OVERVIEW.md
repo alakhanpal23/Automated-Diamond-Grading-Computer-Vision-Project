@@ -12,13 +12,14 @@ what's recoverable from video vs. what needs better capture.
 
 ## Benchmarks — LOCKED test set (the honest metric)
 A fixed 1,500-stone test set was set aside up front; every model was retrained on the
-rest and evaluated only on those locked, never-seen stones (leak-free, vs. the GIA cert).
+rest. Grading results below were evaluated on 1,200 of those locked, never-seen stones
+(leak-free, vs. the GIA cert). Physical dimensions used a separate 400-stone holdout.
 
 | Attribute | Result | Note |
 |---|:---:|---|
 | **Cut geometry** (depth%, table%, angles) | **±0.5–0.9%, ±0.2°** | near-GIA precision |
 | **L/W ratio** | **±0.01** | all shapes |
-| **Physical dimensions** (L×W×D mm) | **±0.1 mm** | proportions + weighed carat |
+| **Physical dimensions** (L×W×D mm) | **MAE 0.279 / 0.138 / 0.091 mm** | separate 400-stone holdout; proportions + weighed carat |
 | **Shape** | **99.3%** | 10 classes |
 | **Color** (3 groups) | **87.2%** | D–J body color |
 | **Eye-clean** | **89.4%** | naked-eye clarity |

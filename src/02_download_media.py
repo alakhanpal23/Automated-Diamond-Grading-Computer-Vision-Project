@@ -29,6 +29,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
+from urllib.parse import urlsplit
 
 import pandas as pd
 import requests
@@ -126,7 +127,8 @@ def fetch(task: Task, session: requests.Session) -> Result:
                 tmp.replace(task.dest)
                 return Result(task.stone_id, task.kind, "ok", bytes_written, attempt, None)
         except requests.RequestException as e:
-            last_err = type(e).__name__ + ": " + str(e)[:120]
+            # Requests errors may include the URL, whose query carries the media token.
+            last_err = type(e).__name__
             time.sleep(BACKOFF_BASE ** attempt)
 
     # All retries exhausted
@@ -171,7 +173,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--shuffle", action="store_true",
                    help="Shuffle the worklist (useful to spread load across the inventory)")
     p.add_argument("--dry-run", action="store_true",
-                   help="Print the first 5 planned URLs and totals, then exit")
+                   help="Print the first 5 planned destinations and hosts, then exit")
     return p.parse_args()
 
 
@@ -203,7 +205,7 @@ def main() -> None:
         print("INFO: --dry-run; first 5 tasks:")
         for t in tasks[:5]:
             print(f"  {t.kind:<5}  {t.stone_id}  ->  {t.dest}")
-            print(f"          {t.url[:120]}{'...' if len(t.url) > 120 else ''}")
+            print(f"          host: {urlsplit(t.url).hostname or '(unknown)'}")
         return
 
     LOG_CSV.parent.mkdir(parents=True, exist_ok=True)

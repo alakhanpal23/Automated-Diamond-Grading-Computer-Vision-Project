@@ -186,7 +186,8 @@ def ensure_pdf(stone_id: str, pdf_link: str | None, *, download: bool,
         tmp.replace(dest)
         return dest, None
     except requests.RequestException as e:
-        return None, f"{type(e).__name__}: {str(e)[:100]}"
+        # The PDF link may carry a token; requests errors can echo the full URL.
+        return None, type(e).__name__
 
 
 def process(stone_id: str, pdf_link: str | None, csv_types: str | None, *,
