@@ -1,6 +1,6 @@
 # Diamond grading from 360° video
 
-**A computer-vision research prototype that turns rotating diamond videos into an auditable grading dossier.** It combines multi-view classifiers, proportion estimation, inclusion localization, and certificate comparison. The central question is practical: which grading signals can ordinary video recover, and which require a better capture rig?
+**Vision software designed as the core of an automated diamond-grading machine:** multi-view camera footage in, per-stone grade estimates and an auditable dossier out. The research prototype combines classifiers, proportion estimation, inclusion localization, and certificate comparison. Its benchmarks show which grading signals ordinary video can recover and which require a better capture rig.
 
 <a href="data/processed/demo/investor_blindtest.jpg">
   <img src="data/processed/demo/investor_blindtest.jpg" alt="Example of a diamond video frame beside model predictions and certificate values, including a fluorescence miss" width="960">

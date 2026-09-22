@@ -1,56 +1,53 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="590" viewBox="0 0 1200 590" role="img" aria-labelledby="title desc">
-<title id="title">From rotating video to auditable dossier</title>
-<desc id="desc">Research pipeline; certificate labels stay out of held-out inference</desc>
-<rect width="1200" height="590" rx="28" fill="#071521"/>
-<rect x="1" y="1" width="1198" height="588" rx="27" fill="none" stroke="#254256" stroke-width="2"/>
-<rect x="52" y="46" width="8" height="42" rx="4" fill="#8bd8ff"/>
-<text x="77" y="67" fill="#8bd8ff" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" letter-spacing="2">DIAMOND GRADING  /  SYSTEM DESIGN</text>
-<text x="52" y="120" fill="#f1f7fb" font-family="Arial, Helvetica, sans-serif" font-size="37" font-weight="700">From rotating video to auditable dossier</text>
-<text x="52" y="154" fill="#a9bfcb" font-family="Arial, Helvetica, sans-serif" font-size="19">Research pipeline; certificate labels stay out of held-out inference</text>
-<rect x="52" y="211" width="208" height="224" rx="18" fill="#102637" stroke="#2d4b5d" stroke-width="2"/>
-<circle cx="82" cy="244" r="15" fill="#8bd8ff" opacity=".18"/>
-<text x="82" y="250" text-anchor="middle" fill="#8bd8ff" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700">01</text>
-<text x="72" y="295" fill="#8bd8ff" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" letter-spacing="1.4">INGEST</text>
-<rect x="72" y="315" width="168" height="1" fill="#315469"/>
-<text x="72" y="357" fill="#f1f7fb" font-family="Arial, Helvetica, sans-serif" font-size="19">360° video</text>
-<text x="72" y="388" fill="#a9bfcb" font-family="Arial, Helvetica, sans-serif" font-size="17">Certificate labels</text>
-<path d="M 269 323 H 280" stroke="#8bd8ff" stroke-width="3" stroke-linecap="round"/>
-<path d="M 275 317 L 282 323 L 275 329" fill="none" stroke="#8bd8ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-<rect x="284" y="211" width="208" height="224" rx="18" fill="#102637" stroke="#2d4b5d" stroke-width="2"/>
-<circle cx="314" cy="244" r="15" fill="#8bd8ff" opacity=".18"/>
-<text x="314" y="250" text-anchor="middle" fill="#8bd8ff" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700">02</text>
-<text x="304" y="295" fill="#8bd8ff" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" letter-spacing="1.4">PREPARE</text>
-<rect x="304" y="315" width="168" height="1" fill="#315469"/>
-<text x="304" y="357" fill="#f1f7fb" font-family="Arial, Helvetica, sans-serif" font-size="19">Extract frames</text>
-<text x="304" y="388" fill="#a9bfcb" font-family="Arial, Helvetica, sans-serif" font-size="17">Stone-level split</text>
-<path d="M 501 323 H 512" stroke="#8bd8ff" stroke-width="3" stroke-linecap="round"/>
-<path d="M 507 317 L 514 323 L 507 329" fill="none" stroke="#8bd8ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-<rect x="516" y="211" width="208" height="224" rx="18" fill="#102637" stroke="#2d4b5d" stroke-width="2"/>
-<circle cx="546" cy="244" r="15" fill="#8bd8ff" opacity=".18"/>
-<text x="546" y="250" text-anchor="middle" fill="#8bd8ff" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700">03</text>
-<text x="536" y="295" fill="#8bd8ff" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" letter-spacing="1.4">PREDICT</text>
-<rect x="536" y="315" width="168" height="1" fill="#315469"/>
-<text x="536" y="357" fill="#f1f7fb" font-family="Arial, Helvetica, sans-serif" font-size="19">Grading heads</text>
-<text x="536" y="388" fill="#a9bfcb" font-family="Arial, Helvetica, sans-serif" font-size="17">Multi-view signals</text>
-<path d="M 733 323 H 744" stroke="#8bd8ff" stroke-width="3" stroke-linecap="round"/>
-<path d="M 739 317 L 746 323 L 739 329" fill="none" stroke="#8bd8ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-<rect x="748" y="211" width="208" height="224" rx="18" fill="#102637" stroke="#2d4b5d" stroke-width="2"/>
-<circle cx="778" cy="244" r="15" fill="#8bd8ff" opacity=".18"/>
-<text x="778" y="250" text-anchor="middle" fill="#8bd8ff" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700">04</text>
-<text x="768" y="295" fill="#8bd8ff" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" letter-spacing="1.4">MEASURE</text>
-<rect x="768" y="315" width="168" height="1" fill="#315469"/>
-<text x="768" y="357" fill="#f1f7fb" font-family="Arial, Helvetica, sans-serif" font-size="19">Proportions</text>
-<text x="768" y="388" fill="#a9bfcb" font-family="Arial, Helvetica, sans-serif" font-size="17">+ weighed carat</text>
-<path d="M 965 323 H 976" stroke="#8bd8ff" stroke-width="3" stroke-linecap="round"/>
-<path d="M 971 317 L 978 323 L 971 329" fill="none" stroke="#8bd8ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-<rect x="980" y="211" width="208" height="224" rx="18" fill="#102637" stroke="#2d4b5d" stroke-width="2"/>
-<circle cx="1010" cy="244" r="15" fill="#8bd8ff" opacity=".18"/>
-<text x="1010" y="250" text-anchor="middle" fill="#8bd8ff" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700">05</text>
-<text x="1000" y="295" fill="#8bd8ff" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" letter-spacing="1.4">REPORT</text>
-<rect x="1000" y="315" width="168" height="1" fill="#315469"/>
-<text x="1000" y="357" fill="#f1f7fb" font-family="Arial, Helvetica, sans-serif" font-size="19">Digital dossier</text>
-<text x="1000" y="388" fill="#a9bfcb" font-family="Arial, Helvetica, sans-serif" font-size="17">Certificate QC</text>
-<rect x="52" y="474" width="1096" height="65" rx="13" fill="#112d3c" stroke="#2d4b5d"/>
-<circle cx="78" cy="507" r="6" fill="#8bd8ff"/>
-<text x="98" y="514" fill="#d8e9ef" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="600">CAPTURE LIMITS   •   UV for fluorescence  /  microscope for inclusions  /  scale for carat</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+<title id="title">Diamond grading — system diagram</title>
+<desc id="desc">An automated grading machine supplies camera views and measured weight to a grading pipeline that produces estimates and a certificate-linked dossier.</desc>
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 9 4.5 L 0 9" fill="none" stroke="#465768" stroke-width="1.5"/></marker></defs>
+<rect width="1200" height="640" fill="#ffffff"/>
+<text x="40" y="52" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#172b3a">Diamond grading — system diagram</text>
+<path d="M 40 69 H 1160" stroke="#d5dce2" stroke-width="1"/>
+<rect x="40" y="125" width="210" height="390" fill="#f8fafb" stroke="#9aaab5" stroke-width="1.5" stroke-dasharray="7 5"/>
+<rect x="54" y="115" width="198" height="22" fill="#ffffff"/>
+<text x="62" y="131" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700" fill="#33485a">Machine capture target</text>
+<rect x="60" y="205" width="170" height="80" fill="#ffffff" stroke="#465768" stroke-width="1.7"/>
+<text x="145.0" y="242.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#172b3a">Camera</text>
+<text x="145.0" y="267.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#536777">multi-view video</text>
+<rect x="60" y="390" width="170" height="80" fill="#ffffff" stroke="#465768" stroke-width="1.7"/>
+<text x="145.0" y="427.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#172b3a">Scale</text>
+<text x="145.0" y="452.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#536777">measured carat</text>
+<rect x="300" y="205" width="170" height="80" fill="#ffffff" stroke="#465768" stroke-width="1.7"/>
+<text x="385.0" y="242.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#172b3a">Frame extraction</text>
+<text x="385.0" y="267.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#536777">multi-view frames</text>
+<rect x="520" y="205" width="175" height="80" fill="#ffffff" stroke="#465768" stroke-width="1.7"/>
+<text x="607.5" y="242.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#172b3a">Grading models</text>
+<text x="607.5" y="267.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#536777">shape · color · clarity</text>
+<rect x="745" y="205" width="175" height="80" fill="#ffffff" stroke="#465768" stroke-width="1.7"/>
+<text x="832.5" y="242.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#172b3a">Grade estimates</text>
+<text x="832.5" y="267.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#536777">per stone</text>
+<rect x="985" y="265" width="175" height="95" fill="#ffffff" stroke="#465768" stroke-width="1.7"/>
+<text x="1072.5" y="309.5" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#172b3a">Dossier</text>
+<text x="1072.5" y="334.5" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#536777">predictions + QC</text>
+<path d="M 230 245 L 300 245" fill="none" stroke="#465768" stroke-width="1.8"/>
+<polygon points="300,245 289.0,250.0 289.0,240.0" fill="#465768"/>
+<path d="M 470 245 L 520 245" fill="none" stroke="#465768" stroke-width="1.8"/>
+<polygon points="520,245 509.0,250.0 509.0,240.0" fill="#465768"/>
+<path d="M 695 245 L 745 245" fill="none" stroke="#465768" stroke-width="1.8"/>
+<polygon points="745,245 734.0,250.0 734.0,240.0" fill="#465768"/>
+<path d="M 920 245 L 950 245 L 950 300 L 985 300" fill="none" stroke="#465768" stroke-width="1.8"/>
+<polygon points="985,300 974.0,305.0 974.0,295.0" fill="#465768"/>
+<rect x="520" y="390" width="175" height="80" fill="#ffffff" stroke="#465768" stroke-width="1.7"/>
+<text x="607.5" y="427.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#172b3a">Geometry</text>
+<text x="607.5" y="452.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#536777">proportions</text>
+<rect x="745" y="390" width="175" height="80" fill="#ffffff" stroke="#465768" stroke-width="1.7"/>
+<text x="832.5" y="427.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#172b3a">Dimensions</text>
+<text x="832.5" y="452.0" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#536777">uses weight</text>
+<path d="M 385 285 L 385 345 L 607 345 L 607 390" fill="none" stroke="#465768" stroke-width="1.8"/>
+<polygon points="607,390 602.0,379.0 612.0,379.0" fill="#465768"/>
+<path d="M 145 470 L 145 500 L 832 500 L 832 470" fill="none" stroke="#465768" stroke-width="1.8"/>
+<polygon points="832,470 837.0,481.0 827.0,481.0" fill="#465768"/>
+<path d="M 695 430 L 745 430" fill="none" stroke="#465768" stroke-width="1.8"/>
+<polygon points="745,430 734.0,435.0 734.0,425.0" fill="#465768"/>
+<path d="M 920 430 L 950 430 L 950 330 L 985 330" fill="none" stroke="#465768" stroke-width="1.8"/>
+<polygon points="985,330 974.0,335.0 974.0,325.0" fill="#465768"/>
+<text x="40" y="550" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#536777">Prototype uses existing 360° videos; machine integration is the intended application.</text>
+<text x="40" y="578" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#536777">Cert labels support training and QC; UV and microscopy are needed for full grading.</text>
 </svg>
